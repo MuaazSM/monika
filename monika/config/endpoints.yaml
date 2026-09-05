@@ -1,0 +1,56 @@
+# Endpoint configuration (PRD §6.2). Drives detection in Tier 1.
+# admin_only + admin_subs per DECISIONS.md D-10.
+#
+# The six CONFIGURED (monitored) routes = the eight demo routes (§10.2) minus
+# /api/step-up (the correct route, no detector) and /api/transfer (unmonitored, D-11).
+
+admin_subs: [749]          # seeded admin user id(s); D1 fires FLA if sub not here
+
+endpoints:
+  - method: POST
+    path_pattern: /api/login
+    id_param: null
+    owner_field: null
+    auth_required: false     # login itself is unauthenticated; monitored for D2/D3
+    sensitive_fields: []
+    admin_only: false
+
+  - method: GET
+    path_pattern: /api/users/{id}
+    id_param: id
+    owner_field: id          # response JSON field identifying the owner
+    auth_required: true
+    sensitive_fields: [password_hash, ssn, api_key]
+    admin_only: false
+
+  - method: GET
+    path_pattern: /api/users/{id}/orders
+    id_param: id
+    owner_field: user_id
+    auth_required: true
+    sensitive_fields: []
+    admin_only: false
+
+  - method: GET
+    path_pattern: /api/search
+    id_param: null
+    owner_field: null
+    auth_required: false
+    sensitive_fields: []
+    admin_only: false
+
+  - method: GET
+    path_pattern: /api/admin/users
+    id_param: null
+    owner_field: null
+    auth_required: true
+    sensitive_fields: [password_hash, ssn]
+    admin_only: true         # D1: FUNCTION_LEVEL_AUTH if sub not in admin_subs
+
+  - method: GET
+    path_pattern: /api/products
+    id_param: null
+    owner_field: null        # public resource; auth detector skips
+    auth_required: false
+    sensitive_fields: [cost_price, supplier_margin]
+    admin_only: false
