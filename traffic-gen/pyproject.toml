@@ -1,0 +1,14 @@
+[project]
+name = "traffic-gen"
+version = "0.1.0"
+description = "Benign + attack traffic generator for Monika demos."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "httpx>=0.28",
+    "redis>=5.2",
+    "pyyaml>=6.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
