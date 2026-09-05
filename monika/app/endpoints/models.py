@@ -47,3 +47,25 @@ class EndpointConfig(BaseModel):
         """Return extracted path params if `path` matches, else None."""
         m = self._regex.match(path)
         return m.groupdict() if m else None
+
+
+class EndpointOut(BaseModel):
+    """One row of the §13.1 risk map: config + baseline snapshot + observed risk.
+
+    risk_level is derived from incidents seen on this endpoint (last 30 min):
+    'red' if any incident scored >= 80, 'amber' if any incident exists (>= 30),
+    else 'green'. Baseline columns are the D-03 display snapshot (Redis is authoritative).
+    """
+
+    id: uuid.UUID
+    method: str
+    path_pattern: str
+    auth_required: bool
+    admin_only: bool
+    sensitive_fields: list[str]
+    baseline_rpm_mean: float
+    baseline_rpm_std: float
+    baseline_resp_bytes: int
+    incident_count: int
+    max_risk_score: int | None
+    risk_level: str

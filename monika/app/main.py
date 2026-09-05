@@ -26,6 +26,7 @@ from .detection.d2_enum import EnumDetector
 from .detection.d3_rate import RateDetector
 from .detection.d4_payload import PayloadDetector
 from .endpoints.loader import load_registry
+from .endpoints.router import router as endpoints_router
 from .endpoints.service import sync_registry_to_db
 from .explainer.client import create_client as create_explainer_client
 from .explainer.job import ExplainerJob
@@ -173,6 +174,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(incidents_router)
     app.include_router(sse_router)
     app.include_router(stats_router)
+    app.include_router(endpoints_router)
     app.include_router(overrides_router)
     app.include_router(simulator_router)
     app.include_router(proxy_router)
