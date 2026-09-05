@@ -1,0 +1,24 @@
+# planning / spec material — local only
+docs/
+*.pdf
+*.docx
+Implementation-*.md
+GATES.md
+
+# secrets and local env
+.env
+.env.*
+!.env.example
+
+# usual suspects
+node_modules/
+.next/
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+*.log
+.DS_Store
