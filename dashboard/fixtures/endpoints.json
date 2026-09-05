@@ -1,0 +1,11 @@
+[
+  {"id":"ep-users","method":"GET","path":"/api/users/{id}","auth_required":true,"baseline_rpm":20,"incidents_24h":8,"top_threat":"BOLA_ENUMERATION","band":"SEVERE","owner_field":"user_id","sensitive_fields":["email","phone"],"baseline_n":120},
+  {"id":"ep-login","method":"POST","path":"/api/auth/login","auth_required":false,"baseline_rpm":12,"incidents_24h":4,"top_threat":"CREDENTIAL_STUFFING","band":"CRITICAL","owner_field":null,"sensitive_fields":[],"baseline_n":80},
+  {"id":"ep-orders","method":"GET","path":"/api/orders/{id}","auth_required":true,"baseline_rpm":30,"incidents_24h":3,"top_threat":"BOLA","band":"HIGH","owner_field":"user_id","sensitive_fields":["total"],"baseline_n":44},
+  {"id":"ep-search","method":"GET","path":"/api/search","auth_required":true,"baseline_rpm":40,"incidents_24h":2,"top_threat":"RATE_ABUSE","band":"SUSPICIOUS","owner_field":null,"sensitive_fields":[],"baseline_n":25},
+  {"id":"ep-products","method":"GET","path":"/api/products","auth_required":false,"baseline_rpm":60,"incidents_24h":1,"top_threat":"SQLI","band":"SUSPICIOUS","owner_field":null,"sensitive_fields":[],"baseline_n":30},
+  {"id":"ep-export","method":"POST","path":"/api/export","auth_required":true,"baseline_rpm":5,"incidents_24h":1,"top_threat":"RATE_ABUSE","band":"HIGH","owner_field":"user_id","sensitive_fields":["download_url"],"baseline_n":18},
+  {"id":"ep-profile","method":"GET","path":"/api/profile","auth_required":true,"baseline_rpm":25,"incidents_24h":0,"top_threat":null,"band":"SAFE","owner_field":"user_id","sensitive_fields":["email"],"baseline_n":65},
+  {"id":"ep-health","method":"GET","path":"/api/health","auth_required":false,"baseline_rpm":120,"incidents_24h":0,"top_threat":null,"band":"SAFE","owner_field":null,"sensitive_fields":[],"baseline_n":200},
+  {"id":"ep-reports","method":"POST","path":"/api/reports","auth_required":true,"baseline_rpm":10,"incidents_24h":0,"top_threat":null,"band":"SAFE","owner_field":"user_id","sensitive_fields":[],"baseline_n":9}
+]
