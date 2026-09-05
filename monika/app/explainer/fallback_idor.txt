@@ -1,0 +1,2 @@
+The evidence shows one session reading multiple user records it does not own on GET /api/users/{id}, with a sensitive field present in the responses, which is the signature of a broken-object-level-authorization sweep. The sequential object identifiers and the single-session concentration indicate deliberate enumeration rather than normal browsing.
+Next step: review this session's recent object access and confirm whether the affected records were exposed before the response ladder engaged.
