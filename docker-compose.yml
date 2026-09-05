@@ -1,0 +1,130 @@
+# Monika — T1 compose skeleton (PRD §11.3).
+# dashboard (T11) and traffic-gen (T9) services are added in later phases.
+
+name: monika
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: monika
+      POSTGRES_USER: monika
+      POSTGRES_PASSWORD: monika
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U monika -d monika"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 3s
+
+  migrate:
+    build: ./monika
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      MONIKA_DATABASE_URL: postgresql+asyncpg://monika:monika@postgres:5432/monika
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  demo-api:
+    build: ./demo-api
+    # Deliberately NOT published to the host: only monika may talk to it (CLAUDE.md §5).
+    expose:
+      - "9000"
+    environment:
+      DEMO_API_DATABASE_URL: postgresql://monika:monika@postgres:5432/monika
+      MONIKA_JWT_SECRET: ${MONIKA_JWT_SECRET:-dev-insecure-secret-change-me}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+
+  seed:
+    build: ./demo-api
+    # One-shot: create the demo schema and load seed data, then exit.
+    command: ["python", "-m", "app.seed"]
+    environment:
+      DEMO_API_DATABASE_URL: postgresql://monika:monika@postgres:5432/monika
+      MONIKA_JWT_SECRET: ${MONIKA_JWT_SECRET:-dev-insecure-secret-change-me}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  monika:
+    build: ./monika
+    ports:
+      - "8000:8000"
+    environment:
+      MONIKA_DATABASE_URL: postgresql+asyncpg://monika:monika@postgres:5432/monika
+      MONIKA_REDIS_URL: redis://redis:6379/0
+      MONIKA_UPSTREAM_URL: http://demo-api:9000
+      MONIKA_JWT_SECRET: ${MONIKA_JWT_SECRET:-dev-insecure-secret-change-me}
+      MONIKA_ANTHROPIC_API_KEY: ${MONIKA_ANTHROPIC_API_KEY:-}
+      MONIKA_ANTHROPIC_MODEL: ${MONIKA_ANTHROPIC_MODEL:-claude-sonnet-4-6}
+      MONIKA_EXPLAINER_ENABLED: ${MONIKA_EXPLAINER_ENABLED:-true}
+      MONIKA_EXPLAINER_FALLBACK: ${MONIKA_EXPLAINER_FALLBACK:-false}
+      MONIKA_LADDER_TIME_DIVISOR: ${MONIKA_LADDER_TIME_DIVISOR:-1}
+      MONIKA_RATE_FLOOR_RPM: ${MONIKA_RATE_FLOOR_RPM:-20}
+      MONIKA_ENDPOINTS_CONFIG: ${MONIKA_ENDPOINTS_CONFIG:-config/endpoints.yaml}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      demo-api:
+        condition: service_started
+
+  seed-baselines:
+    build: ./traffic-gen
+    # One-shot: 3 minutes of benign traffic through the proxy (the learning phase, §6.3).
+    command: ["python", "seed_baselines.py"]
+    environment:
+      MONIKA_URL: http://monika:8000
+      MONIKA_REDIS_URL: redis://redis:6379/0
+      ENDPOINTS_CONFIG: config/endpoints.yaml
+      SEED_DURATION_S: ${SEED_DURATION_S:-180}
+    volumes:
+      # the learning phase must derive endpoint_ids from the same config monika loads
+      - ./monika/config:/app/config:ro
+    depends_on:
+      monika:
+        condition: service_started
+      seed:
+        condition: service_completed_successfully
+    restart: "no"
+
+  traffic-gen:
+    build: ./traffic-gen
+    # Runs the benign profile by default, after the learning phase completes.
+    command: ["python", "-m", "traffic_gen", "benign", "--duration", "86400"]
+    environment:
+      MONIKA_URL: http://monika:8000
+    depends_on:
+      monika:
+        condition: service_started
+      seed-baselines:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  pgdata:

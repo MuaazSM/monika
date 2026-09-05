@@ -1,0 +1,47 @@
+[importlinter]
+root_package = app
+include_external_packages = True
+
+[importlinter:contract:layers]
+name = Module dependencies are one-way (CLAUDE.md rule 9)
+type = layers
+layers =
+    app.proxy
+    app.detection
+    app.scoring
+    app.policy
+    app.incidents
+    app.explainer
+
+[importlinter:contract:explainer-isolation]
+name = The LLM never decides (CLAUDE.md rule 1)
+type = forbidden
+# allow_indirect: incidents ⇢ explainer is the intended reach (rule 9); we forbid only
+# DIRECT imports of explainer from proxy/detection/scoring/policy code.
+allow_indirect_imports = True
+source_modules =
+    app.proxy
+    app.detection
+    app.scoring
+    app.policy
+forbidden_modules =
+    app.explainer
+
+[importlinter:contract:anthropic-isolation]
+name = Only the explainer may import the Anthropic SDK (CLAUDE.md rule 1)
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    app.proxy
+    app.detection
+    app.scoring
+    app.policy
+    app.incidents
+    app.endpoints
+    app.stats
+    app.db
+    app.main
+    app.settings
+    app.logging
+forbidden_modules =
+    anthropic
