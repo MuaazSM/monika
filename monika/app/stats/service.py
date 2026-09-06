@@ -10,10 +10,13 @@ Denominators of zero yield null, never 0.00, so a fresh demo shows no precision.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from uuid import UUID
 
+from redis.asyncio import Redis
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from ..detection.baselines import baselines_ready
 from ..incidents.models import EndpointConfigRow, IncidentRow, OverrideRow, RequestLog
 from .models import StatsOut
 
@@ -34,7 +37,11 @@ SCENARIO_THREAT = {
 
 
 async def compute_stats(
-    session_factory: async_sessionmaker[AsyncSession], *, now: datetime
+    session_factory: async_sessionmaker[AsyncSession],
+    *,
+    now: datetime,
+    redis: Redis,
+    endpoint_ids: list[UUID],
 ) -> StatsOut:
     window_start = now - timedelta(minutes=WINDOW_MINUTES)
 
@@ -140,6 +147,8 @@ async def compute_stats(
         ).all()
         benign_by_rung = {action: count for action, count in rung_rows}
 
+    learning = not await baselines_ready(redis, endpoint_ids)
+
     return StatsOut(
         total_requests=total_requests,
         incidents=incidents,
@@ -149,4 +158,5 @@ async def compute_stats(
         recall=recall,
         benign_by_rung=benign_by_rung,
         window_minutes=WINDOW_MINUTES,
+        learning=learning,
     )

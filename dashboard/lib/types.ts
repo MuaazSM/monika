@@ -104,6 +104,8 @@ export interface Stats {
   // "block" | "revoke" — lowercase enforcement actions, NOT the LadderState enum.
   benign_by_rung: Record<string, number>;
   window_minutes: number;
+  // True until every configured endpoint has >= 30 baseline samples.
+  learning: boolean;
 }
 
 // SimulateRun (monika/app/simulator/router.py)

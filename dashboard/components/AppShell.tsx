@@ -21,6 +21,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [clock, setClock] = useState("");
   const hydrate = useIncidentStore((state) => state.hydrate);
   const applyEvent = useIncidentStore((state) => state.applyEvent);
+  const learning = useIncidentStore((state) => state.stats.learning);
 
   useEffect(() => {
     const update = () => setClock(new Intl.DateTimeFormat("en", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "UTC" }).format());
@@ -66,7 +67,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
       <div className="lg:pl-64">
         <header className="flex h-20 items-center justify-between border-b border-zinc-800/80 px-6 sm:px-8">
-          <div className="flex items-center gap-2 text-sm text-zinc-400"><CircleDot size={14} className="text-emerald-400" /><span>PROTECTED</span></div>
+          <div className="flex items-center gap-2 text-sm text-zinc-400">
+            <CircleDot size={14} className={learning ? "text-amber-400" : "text-emerald-400"} />
+            <span>{learning ? "LEARNING" : "PROTECTED"}</span>
+          </div>
           <time className="mono text-xs text-zinc-500" dateTime={clock}>{clock || "--:--:--"} UTC</time>
         </header>
         <main className="mx-auto max-w-[1600px] p-6 sm:p-8">{children}</main>

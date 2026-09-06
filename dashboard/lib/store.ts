@@ -10,6 +10,7 @@ export const emptyStats: Stats = {
   recall: null,
   benign_by_rung: {},
   window_minutes: 30,
+  learning: true,
 };
 
 function upsertIncident(list: Incident[], incident: Incident): Incident[] {

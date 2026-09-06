@@ -16,3 +16,6 @@ class StatsOut(BaseModel):
     recall: float | None  # null (not 0) when no attack scenario ran
     benign_by_rung: dict[str, int]  # benign requests per ladder rung reached
     window_minutes: int = 30
+    # True until every configured endpoint has >= 30 samples (detection.baselines.
+    # baselines_ready) — the dashboard's "Learning" badge (CLAUDE.md §11.2 demo checklist).
+    learning: bool = False

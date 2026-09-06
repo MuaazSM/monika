@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
+from fakeredis import aioredis
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.db.base import Base
@@ -25,6 +26,17 @@ async def sf():
     await engine.dispose()
 
 
+@pytest.fixture
+async def redis():
+    r = aioredis.FakeRedis(decode_responses=True)
+    yield r
+
+
+async def _stats(sf, redis, *, now=NOW):
+    """compute_stats with no configured endpoints — these tests don't exercise `learning`."""
+    return await compute_stats(sf, now=now, redis=redis, endpoint_ids=[])
+
+
 def _rl(action, label, *, minutes_ago=1, sk="s"):
     return RequestLog(
         request_id=str(uuid4()),
@@ -40,15 +52,15 @@ def _rl(action, label, *, minutes_ago=1, sk="s"):
     )
 
 
-async def test_empty_window_returns_nulls_not_zeros(sf) -> None:
-    stats = await compute_stats(sf, now=NOW)
+async def test_empty_window_returns_nulls_not_zeros(sf, redis) -> None:
+    stats = await _stats(sf, redis)
     assert stats.precision is None  # not 0.0
     assert stats.recall is None  # not 0.0
     assert stats.total_requests == 0
     assert stats.benign_by_rung == {}
 
 
-async def test_precision_ratio(sf) -> None:
+async def test_precision_ratio(sf, redis) -> None:
     async with sf() as s:
         # 3 enforced attack requests + 1 enforced benign (false positive) = 4 enforced total
         s.add(_rl("block", "attack:idor"))
@@ -57,12 +69,12 @@ async def test_precision_ratio(sf) -> None:
         s.add(_rl("rate_limit", "benign"))  # benign that reached RATE_LIMIT -> lowers precision
         s.add(_rl("allow", "benign"))  # not enforced -> excluded from precision
         await s.commit()
-    stats = await compute_stats(sf, now=NOW)
+    stats = await _stats(sf, redis)
     assert stats.precision == 0.75  # 3 attack / 4 enforced
     assert stats.benign_by_rung == {"rate_limit": 1, "allow": 1}
 
 
-async def test_recall_ratio(sf) -> None:
+async def test_recall_ratio(sf, redis) -> None:
     async with sf() as s:
         # two scenarios run; only idor produced an incident >= 60 for its session
         s.add(_rl("block", "attack:idor", sk="742"))
@@ -82,20 +94,20 @@ async def test_recall_ratio(sf) -> None:
             )
         )
         await s.commit()
-    stats = await compute_stats(sf, now=NOW)
+    stats = await _stats(sf, redis)
     assert stats.recall == 0.5  # 1 detected (idor) / 2 run (idor, scrape)
 
 
-async def test_window_excludes_old_rows(sf) -> None:
+async def test_window_excludes_old_rows(sf, redis) -> None:
     async with sf() as s:
         s.add(_rl("block", "attack:idor", minutes_ago=45))  # outside 30-min window
         await s.commit()
-    stats = await compute_stats(sf, now=NOW)
+    stats = await _stats(sf, redis)
     assert stats.precision is None  # the only enforced row is out of window
     assert stats.total_requests == 1  # tiles are all-time
 
 
-async def test_false_positive_override_excluded_from_numerator(sf) -> None:
+async def test_false_positive_override_excluded_from_numerator(sf, redis) -> None:
     from uuid import uuid4
 
     from app.incidents.models import OverrideRow
@@ -128,6 +140,20 @@ async def test_false_positive_override_excluded_from_numerator(sf) -> None:
             )
         )
         await s.commit()
-    stats = await compute_stats(sf, now=NOW)
+    stats = await _stats(sf, redis)
     # the enforced request is in the denominator but excluded from the numerator -> 0/1
     assert stats.precision == 0.0
+
+
+async def test_learning_until_every_endpoint_has_baseline_samples(sf, redis) -> None:
+    from app.detection.baselines import record_request
+
+    a, b = uuid4(), uuid4()
+    stats = await compute_stats(sf, now=NOW, redis=redis, endpoint_ids=[a, b])
+    assert stats.learning is True  # no samples yet
+
+    for _ in range(30):
+        await record_request(redis, a, 100, NOW.timestamp())
+        await record_request(redis, b, 100, NOW.timestamp())
+    stats = await compute_stats(sf, now=NOW, redis=redis, endpoint_ids=[a, b])
+    assert stats.learning is False  # both endpoints reached the 30-sample floor

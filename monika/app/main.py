@@ -118,11 +118,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await sync_registry_to_db(session_factory, registry)
 
     # Background task: broadcast stats.tick every 2s (in-process asyncio, rule 8).
+    # admin_only endpoints never accumulate baseline samples (DECISIONS.md D-12: the
+    # learning-phase traffic-gen deliberately skips them) — exclude them from the
+    # readiness check or `learning` would never clear.
+    endpoint_ids = [ep.endpoint_id for ep in registry.endpoints if not ep.admin_only]
+
     async def _stats_ticker() -> None:
         while True:
             await asyncio.sleep(2)
             try:
-                stats = await compute_stats(session_factory, now=datetime.now(UTC))
+                stats = await compute_stats(
+                    session_factory, now=datetime.now(UTC), redis=redis, endpoint_ids=endpoint_ids
+                )
                 app.state.broadcaster.publish("stats.tick", stats)
             except Exception:  # a stats hiccup must never kill the ticker
                 logger.exception("stats.tick failed")
