@@ -1,0 +1,1061 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Monika",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/_monika/health": {
+      "get": {
+        "tags": [
+          "control-plane"
+        ],
+        "summary": "Health",
+        "description": "Report whether Redis and Postgres are actually reachable right now.",
+        "operationId": "health__monika_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/_monika/incidents": {
+      "get": {
+        "tags": [
+          "incidents"
+        ],
+        "summary": "List Incidents",
+        "description": "Newest-first incident feed with keyset pagination on (created_at, id).",
+        "operationId": "list_incidents__monika_incidents_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentListOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/_monika/incidents/{incident_id}": {
+      "get": {
+        "tags": [
+          "incidents"
+        ],
+        "summary": "Get Incident",
+        "description": "One incident with its signals, overrides and (async) LLM explanation.",
+        "operationId": "get_incident__monika_incidents__incident_id__get",
+        "parameters": [
+          {
+            "name": "incident_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Incident Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/_monika/sessions/{session_key}": {
+      "get": {
+        "tags": [
+          "incidents"
+        ],
+        "summary": "Get Session",
+        "description": "Current ladder state and score, read from Redis (D-04).",
+        "operationId": "get_session__monika_sessions__session_key__get",
+        "parameters": [
+          {
+            "name": "session_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionStateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/_monika/events": {
+      "get": {
+        "tags": [
+          "sse"
+        ],
+        "summary": "Events",
+        "description": "The SSE endpoint. The dashboard never polls; it consumes this stream.",
+        "operationId": "events__monika_events_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/_monika/stats": {
+      "get": {
+        "tags": [
+          "stats"
+        ],
+        "summary": "Get Stats",
+        "operationId": "get_stats__monika_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/_monika/endpoints": {
+      "get": {
+        "tags": [
+          "endpoints"
+        ],
+        "summary": "Get Endpoints",
+        "operationId": "get_endpoints__monika_endpoints_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EndpointOut"
+                  },
+                  "type": "array",
+                  "title": "Response Get Endpoints  Monika Endpoints Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/_monika/incidents/{incident_id}/override": {
+      "post": {
+        "tags": [
+          "overrides"
+        ],
+        "summary": "Override Incident",
+        "operationId": "override_incident__monika_incidents__incident_id__override_post",
+        "parameters": [
+          {
+            "name": "incident_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Incident Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OverrideRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/_monika/reset": {
+      "post": {
+        "tags": [
+          "reset"
+        ],
+        "summary": "Reset",
+        "description": "Dashboard Settings \"Reset demo data\". Fast (<1s): clears incidents/sessions/transient\ndetector state but keeps learned baselines \u2014 for a full re-seed use `make reset` (CLI).",
+        "operationId": "reset__monika_reset_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResetOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/_monika/simulate": {
+      "post": {
+        "tags": [
+          "simulator"
+        ],
+        "summary": "Simulate",
+        "description": "Start one scenario as a background task; return immediately with a run id.\nRefuses to run two scenarios concurrently (409).",
+        "operationId": "simulate__monika_simulate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulateRun"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/_monika/simulate/{run_id}": {
+      "get": {
+        "tags": [
+          "simulator"
+        ],
+        "summary": "Simulate Status",
+        "operationId": "simulate_status__monika_simulate__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulateRun"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "EndpointOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "path_pattern": {
+            "type": "string",
+            "title": "Path Pattern"
+          },
+          "auth_required": {
+            "type": "boolean",
+            "title": "Auth Required"
+          },
+          "admin_only": {
+            "type": "boolean",
+            "title": "Admin Only"
+          },
+          "sensitive_fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sensitive Fields"
+          },
+          "baseline_rpm_mean": {
+            "type": "number",
+            "title": "Baseline Rpm Mean"
+          },
+          "baseline_rpm_std": {
+            "type": "number",
+            "title": "Baseline Rpm Std"
+          },
+          "baseline_resp_bytes": {
+            "type": "integer",
+            "title": "Baseline Resp Bytes"
+          },
+          "incident_count": {
+            "type": "integer",
+            "title": "Incident Count"
+          },
+          "max_risk_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Risk Score"
+          },
+          "risk_level": {
+            "type": "string",
+            "title": "Risk Level"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "method",
+          "path_pattern",
+          "auth_required",
+          "admin_only",
+          "sensitive_fields",
+          "baseline_rpm_mean",
+          "baseline_rpm_std",
+          "baseline_resp_bytes",
+          "incident_count",
+          "max_risk_score",
+          "risk_level"
+        ],
+        "title": "EndpointOut",
+        "description": "One row of the \u00a713.1 risk map: config + baseline snapshot + observed risk.\n\nrisk_level is derived from incidents seen on this endpoint (last 30 min):\n'red' if any incident scored >= 80, 'amber' if any incident exists (>= 30),\nelse 'green'. Baseline columns are the D-03 display snapshot (Redis is authoritative)."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "redis": {
+            "type": "boolean",
+            "title": "Redis"
+          },
+          "postgres": {
+            "type": "boolean",
+            "title": "Postgres"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "redis",
+          "postgres"
+        ],
+        "title": "HealthResponse",
+        "description": "Liveness plus real dependency connectivity."
+      },
+      "IncidentDetailOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "session_key": {
+            "type": "string",
+            "title": "Session Key"
+          },
+          "endpoint_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Endpoint Id"
+          },
+          "threat_type": {
+            "type": "string",
+            "title": "Threat Type"
+          },
+          "risk_score": {
+            "type": "integer",
+            "title": "Risk Score"
+          },
+          "confidence": {
+            "type": "integer",
+            "title": "Confidence"
+          },
+          "action_taken": {
+            "type": "string",
+            "title": "Action Taken"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "llm_explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Explanation"
+          },
+          "llm_next_step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Next Step"
+          },
+          "signals": {
+            "items": {
+              "$ref": "#/components/schemas/SignalOut"
+            },
+            "type": "array",
+            "title": "Signals"
+          },
+          "overrides": {
+            "items": {
+              "$ref": "#/components/schemas/OverrideOut"
+            },
+            "type": "array",
+            "title": "Overrides"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "session_key",
+          "endpoint_id",
+          "threat_type",
+          "risk_score",
+          "confidence",
+          "action_taken",
+          "status",
+          "created_at",
+          "updated_at",
+          "llm_explanation",
+          "llm_next_step",
+          "signals",
+          "overrides"
+        ],
+        "title": "IncidentDetailOut"
+      },
+      "IncidentListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IncidentOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "IncidentListOut"
+      },
+      "IncidentOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "session_key": {
+            "type": "string",
+            "title": "Session Key"
+          },
+          "endpoint_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Endpoint Id"
+          },
+          "threat_type": {
+            "type": "string",
+            "title": "Threat Type"
+          },
+          "risk_score": {
+            "type": "integer",
+            "title": "Risk Score"
+          },
+          "confidence": {
+            "type": "integer",
+            "title": "Confidence"
+          },
+          "action_taken": {
+            "type": "string",
+            "title": "Action Taken"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "session_key",
+          "endpoint_id",
+          "threat_type",
+          "risk_score",
+          "confidence",
+          "action_taken",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "IncidentOut"
+      },
+      "OverrideOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "analyst": {
+            "type": "string",
+            "title": "Analyst"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "analyst",
+          "action",
+          "reason",
+          "created_at"
+        ],
+        "title": "OverrideOut"
+      },
+      "OverrideRequest": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "acknowledge",
+              "unblock",
+              "false_positive",
+              "force_block"
+            ],
+            "title": "Action"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "analyst": {
+            "type": "string",
+            "title": "Analyst"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "reason",
+          "analyst"
+        ],
+        "title": "OverrideRequest"
+      },
+      "ResetOut": {
+        "properties": {
+          "incidents_cleared": {
+            "type": "integer",
+            "title": "Incidents Cleared"
+          },
+          "signals_cleared": {
+            "type": "integer",
+            "title": "Signals Cleared"
+          },
+          "preserved_incidents": {
+            "type": "integer",
+            "title": "Preserved Incidents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "incidents_cleared",
+          "signals_cleared",
+          "preserved_incidents"
+        ],
+        "title": "ResetOut"
+      },
+      "SessionStateOut": {
+        "properties": {
+          "session_key": {
+            "type": "string",
+            "title": "Session Key"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "score": {
+            "type": "integer",
+            "title": "Score"
+          },
+          "last_signal_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Signal At"
+          },
+          "signals_5m": {
+            "type": "integer",
+            "title": "Signals 5M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_key",
+          "state",
+          "score",
+          "last_signal_at",
+          "signals_5m"
+        ],
+        "title": "SessionStateOut"
+      },
+      "SignalOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "severity": {
+            "type": "integer",
+            "title": "Severity"
+          },
+          "evidence": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Evidence"
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "session_key": {
+            "type": "string",
+            "title": "Session Key"
+          },
+          "endpoint_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endpoint Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "severity",
+          "evidence",
+          "request_id",
+          "session_key",
+          "endpoint_id",
+          "created_at"
+        ],
+        "title": "SignalOut"
+      },
+      "SimulateRequest": {
+        "properties": {
+          "scenario": {
+            "type": "string",
+            "title": "Scenario"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scenario"
+        ],
+        "title": "SimulateRequest"
+      },
+      "SimulateRun": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "scenario": {
+            "type": "string",
+            "title": "Scenario"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "scenario",
+          "status"
+        ],
+        "title": "SimulateRun"
+      },
+      "StatsOut": {
+        "properties": {
+          "total_requests": {
+            "type": "integer",
+            "title": "Total Requests"
+          },
+          "incidents": {
+            "type": "integer",
+            "title": "Incidents"
+          },
+          "blocked": {
+            "type": "integer",
+            "title": "Blocked"
+          },
+          "endpoints_configured": {
+            "type": "integer",
+            "title": "Endpoints Configured"
+          },
+          "precision": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precision"
+          },
+          "recall": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recall"
+          },
+          "benign_by_rung": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Benign By Rung"
+          },
+          "window_minutes": {
+            "type": "integer",
+            "title": "Window Minutes",
+            "default": 30
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_requests",
+          "incidents",
+          "blocked",
+          "endpoints_configured",
+          "precision",
+          "recall",
+          "benign_by_rung"
+        ],
+        "title": "StatsOut"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

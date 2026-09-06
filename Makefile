@@ -46,14 +46,19 @@ demo: ## run a traffic-gen scenario: make demo s=idor
 	@test -n "$(s)" || { echo "usage: make demo s=<idor|benign>"; exit 1; }
 	docker compose run --rm traffic-gen python -m traffic_gen $(s)
 
-reset: ## truncate tables, flush redis, re-seed baselines
-	docker compose exec -T postgres psql -U monika -d monika \
-		-c "TRUNCATE incident, signal, override, request_log, session, attack_plan CASCADE;"
+reset: ## truncate tables (never overridden incidents — rule 6), flush redis, re-seed baselines
+	docker compose exec -T postgres psql -U monika -d monika -c "\
+		DELETE FROM signal WHERE incident_id NOT IN (SELECT incident_id FROM override); \
+		DELETE FROM incident WHERE id NOT IN (SELECT incident_id FROM override); \
+		DELETE FROM request_log; \
+		DELETE FROM session; \
+		DELETE FROM attack_plan;"
 	docker compose exec -T redis redis-cli FLUSHALL
 	docker compose run --rm seed-baselines
 
 fastmode: ## MONIKA_LADDER_TIME_DIVISOR=10 for demos
 	MONIKA_LADDER_TIME_DIVISOR=10 docker compose up --build -d monika
 
-types: ## regenerate dashboard/lib/types.ts from the OpenAPI schema
-	@echo "types: not implemented yet — dashboard/lib/types.ts is hand-maintained; no codegen tool wired up"
+types: ## regenerate dashboard/lib/types.gen.ts from monika's OpenAPI schema
+	cd monika && uv run python export_openapi.py
+	cd dashboard && pnpm exec openapi-typescript ../monika/openapi.json -o lib/types.gen.ts

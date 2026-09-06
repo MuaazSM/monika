@@ -1,14 +1,129 @@
-import { Check, Clock3, Info, ShieldAlert } from "lucide-react";
-import { api } from "@/lib/api";
+"use client";
+
+import { use, useEffect, useState } from "react";
+import { Clock3, Info, ShieldAlert, ShieldCheck } from "lucide-react";
+import { api, endpointLabel } from "@/lib/api";
+import type { EndpointSummary, IncidentDetail, SessionState } from "@/lib/types";
 import { LadderBadge } from "@/components/risk/LadderBadge";
 import { ScoreBadge } from "@/components/risk/ScoreBadge";
 import { Mono } from "@/components/ui/Mono";
 
-export default async function IncidentDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const incident = await api.getIncident(id);
-  const currentState = incident.actions.at(-1)?.state ?? "NORMAL";
-  return <div className="space-y-6"><header className="flex flex-wrap items-end justify-between gap-4"><div><p className="eyebrow">Incident detail / {id}</p><h1 className="page-title">{incident.threat_type.replaceAll("_", " ")}</h1><Mono className="mt-2 block text-sm text-zinc-400">{incident.method} {incident.endpoint} / {incident.session_key}</Mono></div><div className="flex items-center gap-3"><div className="text-right"><p className="text-xs text-zinc-600">Confidence</p><Mono className="text-sm text-zinc-300">{incident.confidence} / engine-computed</Mono></div><ScoreBadge score={incident.score} band={incident.band} /><LadderBadge state={currentState} /></div></header><div className="grid gap-4 xl:grid-cols-[2fr_1fr]"><main className="space-y-4"><Evidence incident={incident} /><section className="console-card p-5"><h2 className="section-label">Action taken</h2><div className="mt-5 space-y-4">{incident.actions.map((action) => <div key={action.timestamp} className="flex items-center gap-3"><div className="flex size-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950"><Check size={13} className="text-indigo-300" /></div><div className="flex-1"><LadderBadge state={action.state} /></div><Mono className="text-xs text-zinc-600">{action.score} / {new Date(action.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</Mono></div>)}</div></section><section className="console-card p-5"><h2 className="section-label">Explanation</h2>{incident.llm_explanation ? <p className="mt-4 text-sm leading-6 text-zinc-300">{incident.llm_explanation}</p> : <p className="mt-4 flex items-center gap-2 text-sm text-zinc-500"><Clock3 size={15} />Writing explanation...</p>}<p className="mt-5 border-t border-zinc-800 pt-3 text-[11px] text-zinc-600">Written by the model after the decision was enforced. Scores and actions come from the engine.</p></section><section className="console-card overflow-hidden"><div className="p-5 pb-3"><h2 className="section-label">Request timeline</h2></div><div className="overflow-x-auto"><table className="w-full min-w-[600px] text-left text-xs"><thead className="border-y border-zinc-800 text-zinc-600"><tr><th className="px-5 py-2 font-medium">Time</th><th className="px-5 py-2 font-medium">Request</th><th className="px-5 py-2 font-medium">Status</th><th className="px-5 py-2 font-medium">Action</th></tr></thead><tbody className="divide-y divide-zinc-800/70">{incident.requests.map((request) => <tr key={request.timestamp} className={request.status >= 400 ? "bg-red-500/[0.04]" : ""}><td className="px-5 py-3 text-zinc-600">{new Date(request.timestamp).toLocaleTimeString()}</td><td className="px-5 py-3"><Mono>{request.method} {request.path}</Mono></td><td className="px-5 py-3"><Mono className={request.status >= 400 ? "text-red-400" : "text-emerald-400"}>{request.status}</Mono></td><td className="px-5 py-3"><LadderBadge state={request.action_applied} /></td></tr>)}</tbody></table></div></section></main><aside className="space-y-4"><section className="console-card p-5"><h2 className="section-label">Why was this flagged</h2><div className="mt-4 space-y-3">{incident.signals.sort((a, b) => b.severity - a.severity).map((signal) => <div key={signal.request_id} className="rounded-md border border-zinc-800 bg-zinc-950/60 p-3"><div className="flex items-center justify-between"><span className="text-xs font-medium uppercase text-zinc-300">{signal.category}</span><Mono className="text-xs text-red-400">{signal.severity}</Mono></div><div className="mt-2 h-1 rounded bg-zinc-800"><div className="h-1 rounded bg-red-500" style={{ width: `${signal.severity}%` }} /></div><dl className="mt-3 space-y-2">{Object.entries(signal.evidence).map(([key, value]) => <div key={key} className="flex justify-between gap-3 text-xs"><dt className="text-zinc-600">{key}</dt><dd className="mono max-w-[60%] text-right text-zinc-300">{Array.isArray(value) ? value.join(", ") : String(value)}</dd></div>)}</dl></div>)}</div></section><section className="console-card p-5"><h2 className="section-label">Session state</h2><div className="mt-4 space-y-3 text-xs"><div className="flex justify-between"><span className="text-zinc-600">Current ladder</span><LadderBadge state={currentState} /></div><div className="flex justify-between"><span className="text-zinc-600">Token</span><span className="flex items-center gap-1 text-red-400"><ShieldAlert size={13} /> revoked</span></div><div className="flex justify-between"><span className="text-zinc-600">Last signal</span><Mono className="text-zinc-400">{new Date(incident.last_seen).toLocaleTimeString()}</Mono></div></div></section><section className="console-card p-5"><div className="flex items-start gap-3"><Info size={16} className="mt-0.5 text-indigo-300" /><p className="text-xs leading-5 text-zinc-500">Confidence is calculated by the detection engine from category diversity, prior signals, and anomaly strength.</p></div></section></aside></div></div>;
+export default function IncidentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const [incident, setIncident] = useState<IncidentDetail | null>(null);
+  const [endpoint, setEndpoint] = useState<EndpointSummary | undefined>(undefined);
+  const [session, setSession] = useState<SessionState | null>(null);
+
+  useEffect(() => {
+    api.getIncident(id).then((detail) => {
+      setIncident(detail);
+      api.getEndpoints().then((endpoints) => setEndpoint(endpoints.find((e) => e.id === detail.endpoint_id))).catch(() => undefined);
+      api.getSession(detail.session_key).then(setSession).catch(() => undefined);
+    }).catch(() => undefined);
+  }, [id]);
+
+  if (!incident) return <div className="text-sm text-zinc-500">Loading…</div>;
+
+  const currentState = session?.state ?? incident.action_taken;
+
+  return (
+    <div className="space-y-6">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="eyebrow">Incident detail / {id}</p>
+          <h1 className="page-title">{incident.threat_type.replaceAll("_", " ")}</h1>
+          <Mono className="mt-2 block text-sm text-zinc-400">{endpointLabel(endpoint)} / {incident.session_key}</Mono>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="text-right"><p className="text-xs text-zinc-600">Confidence</p><Mono className="text-sm text-zinc-300">{incident.confidence} / engine-computed</Mono></div>
+          <ScoreBadge score={incident.risk_score} />
+          <LadderBadge state={currentState} />
+        </div>
+      </header>
+      <div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
+        <main className="space-y-4">
+          <Evidence incident={incident} />
+          <section className="console-card p-5">
+            <h2 className="section-label">Action taken</h2>
+            <div className="mt-5 flex items-center gap-3">
+              <LadderBadge state={incident.action_taken} />
+              <Mono className="text-xs text-zinc-600">enforced at score {incident.risk_score}</Mono>
+            </div>
+          </section>
+          <section className="console-card p-5">
+            <h2 className="section-label">Explanation</h2>
+            {incident.llm_explanation ? (
+              <p className="mt-4 text-sm leading-6 text-zinc-300">{incident.llm_explanation}</p>
+            ) : (
+              <p className="mt-4 flex items-center gap-2 text-sm text-zinc-500"><Clock3 size={15} />Writing explanation...</p>
+            )}
+            <p className="mt-5 border-t border-zinc-800 pt-3 text-[11px] text-zinc-600">Written by the model after the decision was enforced. Scores and actions come from the engine.</p>
+          </section>
+          {incident.overrides.length > 0 && (
+            <section className="console-card p-5">
+              <h2 className="section-label">Analyst overrides</h2>
+              <div className="mt-4 space-y-3">
+                {incident.overrides.map((override) => (
+                  <div key={override.id} className="flex items-center justify-between gap-3 border-b border-zinc-800/70 pb-2 text-xs last:border-0">
+                    <span className="text-zinc-300">{override.action.replaceAll("_", " ")} — {override.reason}</span>
+                    <span className="mono text-zinc-600">{override.analyst} / {new Date(override.created_at).toLocaleTimeString()}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </main>
+        <aside className="space-y-4">
+          <section className="console-card p-5">
+            <h2 className="section-label">Why was this flagged</h2>
+            <div className="mt-4 space-y-3">
+              {[...incident.signals].sort((a, b) => b.severity - a.severity).map((signal) => (
+                <div key={signal.id} className="rounded-md border border-zinc-800 bg-zinc-950/60 p-3">
+                  <div className="flex items-center justify-between"><span className="text-xs font-medium uppercase text-zinc-300">{signal.category}</span><Mono className="text-xs text-red-400">{signal.severity}</Mono></div>
+                  <div className="mt-2 h-1 rounded bg-zinc-800"><div className="h-1 rounded bg-red-500" style={{ width: `${signal.severity}%` }} /></div>
+                  <dl className="mt-3 space-y-2">
+                    {Object.entries(signal.evidence).map(([key, value]) => (
+                      <div key={key} className="flex justify-between gap-3 text-xs">
+                        <dt className="text-zinc-600">{key}</dt>
+                        <dd className="mono max-w-[60%] text-right text-zinc-300">{Array.isArray(value) ? value.join(", ") : String(value)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              ))}
+            </div>
+          </section>
+          <section className="console-card p-5">
+            <h2 className="section-label">Session state</h2>
+            <div className="mt-4 space-y-3 text-xs">
+              <div className="flex justify-between"><span className="text-zinc-600">Current ladder</span><LadderBadge state={currentState} /></div>
+              <div className="flex justify-between"><span className="text-zinc-600">Session score</span><Mono className="text-zinc-400">{session?.score ?? incident.risk_score}</Mono></div>
+              {currentState === "REVOKE" && <div className="flex items-center gap-1 text-red-400"><ShieldAlert size={13} /> token revoked</div>}
+              {currentState === "NORMAL" && <div className="flex items-center gap-1 text-emerald-400"><ShieldCheck size={13} /> clear</div>}
+              <div className="flex justify-between"><span className="text-zinc-600">Last updated</span><Mono className="text-zinc-400">{new Date(incident.updated_at).toLocaleTimeString()}</Mono></div>
+            </div>
+          </section>
+          <section className="console-card p-5">
+            <div className="flex items-start gap-3"><Info size={16} className="mt-0.5 text-indigo-300" /><p className="text-xs leading-5 text-zinc-500">Confidence is calculated by the detection engine from category diversity, prior signals, and anomaly strength.</p></div>
+          </section>
+        </aside>
+      </div>
+    </div>
+  );
 }
 
-function Evidence({ incident }: { incident: Awaited<ReturnType<typeof api.getIncident>> }) { return <section className="console-card p-5"><h2 className="section-label">Evidence summary</h2><div className="mt-4 grid gap-3 sm:grid-cols-3">{incident.signals.map((signal) => <div key={signal.request_id} className="border-l-2 border-indigo-400/60 pl-3"><p className="text-xs uppercase text-zinc-500">{signal.category}</p><p className="mono mt-1 text-lg text-zinc-200">{signal.severity}</p></div>)}</div></section>; }
+function Evidence({ incident }: { incident: IncidentDetail }) {
+  return (
+    <section className="console-card p-5">
+      <h2 className="section-label">Evidence summary</h2>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        {incident.signals.map((signal) => (
+          <div key={signal.id} className="border-l-2 border-indigo-400/60 pl-3">
+            <p className="text-xs uppercase text-zinc-500">{signal.category}</p>
+            <p className="mono mt-1 text-lg text-zinc-200">{signal.severity}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}

@@ -1,81 +1,129 @@
-export type ThreatType = "BOLA" | "BOLA_ENUMERATION" | "CREDENTIAL_STUFFING" | "RATE_ABUSE" | "SQLI" | "PAYLOAD_EXPOSURE";
+// Mirrors the backend Pydantic response models exactly (monika/app/*/models.py). Keep in
+// sync by hand until `make types` generates lib/types.gen.ts from the OpenAPI schema and
+// these become thin aliases into it.
+
+export type ThreatType =
+  | "BOLA_ENUMERATION"
+  | "CREDENTIAL_STUFFING"
+  | "SQL_INJECTION"
+  | "DATA_EXPOSURE"
+  | "FUNCTION_LEVEL_AUTH"
+  | "RATE_ABUSE";
+
+// Score bands are a dashboard-only concept (the engine returns a raw 0-100 score) — see
+// lib/utils.ts::scoreToBand for the thresholds, taken from the README's documented bands.
 export type RiskBand = "SAFE" | "SUSPICIOUS" | "HIGH" | "CRITICAL" | "SEVERE";
+
 export type LadderState = "NORMAL" | "OBSERVE" | "RATE_LIMIT" | "CHALLENGE" | "BLOCK" | "REVOKE";
 export type IncidentStatus = "open" | "acknowledged" | "overridden" | "closed";
+export type EndpointRiskLevel = "green" | "amber" | "red";
 
+// SignalOut (monika/app/incidents/models.py)
 export interface Signal {
+  id: string;
   category: "auth" | "enum" | "rate" | "payload" | "exposure";
   severity: number;
-  evidence: Record<string, unknown>;
+  evidence: Record<string, unknown>; // rendered verbatim (CLAUDE.md rule 5) — never reshaped
   request_id: string;
-  endpoint_id: string | null;
   session_key: string;
+  endpoint_id: string | null;
+  created_at: string;
 }
 
+// OverrideOut
 export interface Override {
-  action: "acknowledge" | "unblock" | "false_positive" | "force_block";
+  id: string;
   analyst: string;
+  action: "acknowledge" | "unblock" | "false_positive" | "force_block";
   reason: string;
   created_at: string;
 }
 
+// IncidentOut
 export interface Incident {
   id: string;
-  threat_type: ThreatType;
-  endpoint: string;
-  method: string;
   session_key: string;
-  score: number;
+  endpoint_id: string;
+  threat_type: ThreatType;
+  risk_score: number;
   confidence: number;
-  band: RiskBand;
+  action_taken: LadderState;
   status: IncidentStatus;
-  first_seen: string;
-  last_seen: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// IncidentDetailOut
+export interface IncidentDetail extends Incident {
   llm_explanation: string | null;
+  llm_next_step: string | null;
   signals: Signal[];
-  actions: Array<{ state: LadderState; score: number; timestamp: string }>;
   overrides: Override[];
 }
 
-export interface IncidentDetail extends Incident {
-  requests: Array<{ timestamp: string; method: string; path: string; status: number; action_applied: LadderState }>;
+// IncidentListOut
+export interface IncidentList {
+  items: Incident[];
+  next_cursor: string | null;
 }
 
+// SessionStateOut
 export interface SessionState {
   session_key: string;
   state: LadderState;
   score: number;
-  last_signal_at: string;
-  jti_revoked: boolean;
+  last_signal_at: number | null;
+  signals_5m: number;
 }
 
+// EndpointOut (monika/app/endpoints/models.py — the §13.1 risk map)
 export interface EndpointSummary {
   id: string;
   method: string;
-  path: string;
+  path_pattern: string;
   auth_required: boolean;
-  baseline_rpm: number;
-  incidents_24h: number;
-  top_threat: ThreatType | null;
-  band: RiskBand;
-  owner_field: string | null;
+  admin_only: boolean;
   sensitive_fields: string[];
-  baseline_n: number;
+  baseline_rpm_mean: number;
+  baseline_rpm_std: number;
+  baseline_resp_bytes: number;
+  incident_count: number;
+  max_risk_score: number | null;
+  risk_level: EndpointRiskLevel;
 }
 
+// StatsOut
 export interface Stats {
-  requests: number;
+  total_requests: number;
   incidents: number;
   blocked: number;
-  endpoints: number;
-  learning: boolean;
-  activity: Array<{ minute: string; requests: number; incidents: number }>;
-  precision: { precision: number; recall: number; benign_by_rung: Record<LadderState, number> };
+  endpoints_configured: number;
+  precision: number | null; // null (not 0) when no request reached >= RATE_LIMIT
+  recall: number | null; // null (not 0) when no attack scenario ran
+  benign_by_rung: Record<LadderState, number>;
+  window_minutes: number;
 }
 
+// SimulateRun (monika/app/simulator/router.py)
+export type SimulationStatus = "running" | "done" | "failed";
+
+export interface SimulateRun {
+  run_id: string;
+  scenario: string;
+  status: SimulationStatus;
+}
+
+// ResetOut (monika/app/policy/reset.py)
+export interface ResetResult {
+  incidents_cleared: number;
+  signals_cleared: number;
+  preserved_incidents: number;
+}
+
+// SSE payloads are the same JSON shapes as the matching REST GET response (CLAUDE.md §7).
 export type SseEvent =
   | { type: "incident.created"; payload: Incident }
   | { type: "incident.updated"; payload: Incident }
-  | { type: "incident.explained"; payload: Pick<Incident, "id" | "llm_explanation"> }
+  | { type: "incident.explained"; payload: IncidentDetail }
   | { type: "session.changed"; payload: SessionState }
   | { type: "stats.tick"; payload: Stats };

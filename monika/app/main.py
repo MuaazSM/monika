@@ -39,6 +39,7 @@ from .incidents.sse import Broadcaster
 from .incidents.sse import router as sse_router
 from .logging import configure_logging
 from .policy.overrides import router as overrides_router
+from .policy.reset import router as reset_router
 from .proxy.forward import create_client
 from .proxy.middleware import router as proxy_router
 from .settings import Settings, get_settings
@@ -184,6 +185,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(stats_router)
     app.include_router(endpoints_router)
     app.include_router(overrides_router)
+    app.include_router(reset_router)
     app.include_router(simulator_router)
     app.include_router(proxy_router)
     return app

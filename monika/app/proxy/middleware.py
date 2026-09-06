@@ -98,7 +98,10 @@ async def _log_row(
         await session.commit()
 
 
-@router.api_route("/api/{path:path}", methods=_METHODS)
+# include_in_schema=False: a multi-method api_route on one function makes FastAPI emit the
+# same operationId for every method (a real duplicate-operation-ID schema bug), and this
+# catch-all forwards arbitrary traffic anyway — no typed client should call it directly.
+@router.api_route("/api/{path:path}", methods=_METHODS, include_in_schema=False)
 async def proxy(request: Request, path: str) -> Response:
     """Forward /api/* to the upstream demo API, enforcing the ladder around it."""
     settings: Settings = request.app.state.settings

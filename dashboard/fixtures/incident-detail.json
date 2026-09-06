@@ -1,9 +1,20 @@
 {
-  "id":"inc-001","threat_type":"BOLA_ENUMERATION","endpoint":"/api/users/{id}","method":"GET","session_key":"sess-demo-bola","score":100,"confidence":99,"band":"SEVERE","status":"open","first_seen":"2026-09-06T09:00:00Z","last_seen":"2026-09-06T09:02:10Z","llm_explanation":null,
+  "id":"a1b2c3d4-0001-4a11-8b11-000000000001",
+  "session_key":"742",
+  "endpoint_id":"2b717ea9-622e-5252-be32-25987060fede",
+  "threat_type":"BOLA_ENUMERATION",
+  "risk_score":100,
+  "confidence":99,
+  "action_taken":"REVOKE",
+  "status":"open",
+  "created_at":"2026-09-06T09:00:00Z",
+  "updated_at":"2026-09-06T09:02:10Z",
+  "llm_explanation":null,
+  "llm_next_step":null,
   "signals":[
-    {"category":"auth","severity":92,"evidence":{"jwt_sub":"user-42","requested_object_id":"user-43","object_owner_id":"user-43","ownership_match":false},"request_id":"req-001","endpoint_id":"ep-users","session_key":"sess-demo-bola"},
-    {"category":"enum","severity":88,"evidence":{"distinct_object_ids":12,"window_seconds":120,"sequential_ids":true,"response_similarity":0.98},"request_id":"req-007","endpoint_id":"ep-users","session_key":"sess-demo-bola"},
-    {"category":"exposure","severity":76,"evidence":{"sensitive_fields":["email","phone"],"exposed_fields":["email","phone"],"response_status":200},"request_id":"req-012","endpoint_id":"ep-users","session_key":"sess-demo-bola"}
+    {"id":"b1000000-0000-4000-8000-000000000001","category":"auth","severity":85,"evidence":{"jwt_sub":742,"requested_object_id":743,"object_owner_id":743,"ownership_match":false,"sensitive_field_present":true},"request_id":"req-001","session_key":"742","endpoint_id":"2b717ea9-622e-5252-be32-25987060fede","created_at":"2026-09-06T09:00:10Z"},
+    {"id":"b1000000-0000-4000-8000-000000000002","category":"enum","severity":60,"evidence":{"distinct_ids":6,"window_seconds":60,"monotonic_run":6},"request_id":"req-007","session_key":"742","endpoint_id":"2b717ea9-622e-5252-be32-25987060fede","created_at":"2026-09-06T09:01:00Z"},
+    {"id":"b1000000-0000-4000-8000-000000000003","category":"rate","severity":55,"evidence":{"z_score":5.1,"rpm":410,"baseline_mean":89.3},"request_id":"req-012","session_key":"742","endpoint_id":"2b717ea9-622e-5252-be32-25987060fede","created_at":"2026-09-06T09:01:45Z"}
   ],
-  "actions":[{"state":"OBSERVE","score":35,"timestamp":"2026-09-06T09:00:10Z"},{"state":"RATE_LIMIT","score":62,"timestamp":"2026-09-06T09:01:00Z"},{"state":"CHALLENGE","score":78,"timestamp":"2026-09-06T09:01:20Z"},{"state":"BLOCK","score":91,"timestamp":"2026-09-06T09:01:45Z"},{"state":"REVOKE","score":100,"timestamp":"2026-09-06T09:02:10Z"}],"overrides":[],"requests":[{"timestamp":"2026-09-06T09:00:10Z","method":"GET","path":"/api/users/43","status":200,"action_applied":"OBSERVE"},{"timestamp":"2026-09-06T09:01:00Z","method":"GET","path":"/api/users/44","status":429,"action_applied":"RATE_LIMIT"},{"timestamp":"2026-09-06T09:01:20Z","method":"GET","path":"/api/users/45","status":401,"action_applied":"CHALLENGE"},{"timestamp":"2026-09-06T09:01:45Z","method":"GET","path":"/api/users/46","status":403,"action_applied":"BLOCK"},{"timestamp":"2026-09-06T09:02:10Z","method":"GET","path":"/api/users/47","status":403,"action_applied":"REVOKE"}]
+  "overrides":[]
 }

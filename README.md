@@ -337,9 +337,12 @@ make test        # backend unit tests — just needs `uv sync`, no Docker
 make test-int    # real-stack scenario tests — requires `make up` to be running
 make lint        # ruff + mypy (backend); eslint + next build + tsc --noEmit (frontend)
 make lint-arch   # import-linter: enforces the one-way module dependency rules (§1)
+make types       # export monika's OpenAPI schema and regenerate dashboard/lib/types.gen.ts
 ```
 
 `make test-int` drives every attack scenario through the real proxy + real demo API (never mocked) and asserts the expected `threat_type` and minimum score from the scenario table further down, plus that benign traffic alone never produces an incident ≥ 30.
+
+`make types` needs no running stack — it builds the FastAPI app in-process just to introspect its schema (`monika/export_openapi.py`), then runs `openapi-typescript` on it. `dashboard/lib/types.ts` is still hand-maintained (kept in sync by hand against the generated file) rather than a thin re-export of it, so this is a drift check as much as codegen: if `types.gen.ts` disagrees with `types.ts` after a backend model change, `types.ts` needs updating.
 
 ### 6.8 Running without Docker (local dev)
 
