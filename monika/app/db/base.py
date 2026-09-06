@@ -1,4 +1,4 @@
-"""Declarative base. Models arrive in T8 — this module stays model-free until then."""
+"""Declarative base every Monika ORM model (app/incidents/models.py) binds to."""
 
 from __future__ import annotations
 
