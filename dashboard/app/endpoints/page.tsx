@@ -1,8 +1,8 @@
 "use client";
 
 import { LockKeyhole, Search, SlidersHorizontal } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/api";
+import { useMemo, useState } from "react";
+import { useIncidentStore } from "@/lib/store";
 import type { EndpointSummary, Incident, ThreatType } from "@/lib/types";
 import { RiskLevelBadge } from "@/components/risk/RiskLevelBadge";
 import { ThreatTypeLabel } from "@/components/risk/ThreatTypeLabel";
@@ -26,15 +26,10 @@ function topThreatByEndpoint(incidents: Incident[]): Map<string, ThreatType> {
 }
 
 export default function EndpointsPage() {
-  const [endpoints, setEndpoints] = useState<EndpointSummary[]>([]);
-  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const endpoints = useIncidentStore((state) => state.endpoints);
+  const incidents = useIncidentStore((state) => state.incidents);
   const [query, setQuery] = useState("");
   const [table, setTable] = useState(false);
-
-  useEffect(() => {
-    api.getEndpoints().then(setEndpoints).catch(() => undefined);
-    api.getIncidents().then(setIncidents).catch(() => undefined);
-  }, []);
 
   const topThreats = useMemo(() => topThreatByEndpoint(incidents), [incidents]);
 

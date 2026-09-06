@@ -1,21 +1,11 @@
 "use client";
 
 import { Activity, Server, ShieldCheck, TriangleAlert } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { api, endpointLabel, usingFixtures } from "@/lib/api";
-import type { EndpointSummary, Incident, Stats } from "@/lib/types";
+import { useMemo } from "react";
+import { endpointLabel, usingFixtures } from "@/lib/api";
+import { useIncidentStore } from "@/lib/store";
+import type { EndpointSummary, Incident } from "@/lib/types";
 import { ThreatTypeLabel } from "@/components/risk/ThreatTypeLabel";
-
-const emptyStats: Stats = {
-  total_requests: 0,
-  incidents: 0,
-  blocked: 0,
-  endpoints_configured: 0,
-  precision: null,
-  recall: null,
-  benign_by_rung: {},
-  window_minutes: 30,
-};
 
 function topThreats(incidents: Incident[]): Array<{ name: string; count: number; width: string }> {
   const counts = new Map<string, number>();
@@ -38,15 +28,9 @@ function mostTargeted(incidents: Incident[], endpoints: EndpointSummary[]): Arra
 }
 
 export default function Home() {
-  const [stats, setStats] = useState<Stats>(emptyStats);
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [endpoints, setEndpoints] = useState<EndpointSummary[]>([]);
-
-  useEffect(() => {
-    api.getStats().then(setStats).catch(() => undefined);
-    api.getIncidents().then(setIncidents).catch(() => undefined);
-    api.getEndpoints().then(setEndpoints).catch(() => undefined);
-  }, []);
+  const stats = useIncidentStore((state) => state.stats);
+  const incidents = useIncidentStore((state) => state.incidents);
+  const endpoints = useIncidentStore((state) => state.endpoints);
 
   const threats = useMemo(() => topThreats(incidents), [incidents]);
   const targeted = useMemo(() => mostTargeted(incidents, endpoints), [incidents, endpoints]);

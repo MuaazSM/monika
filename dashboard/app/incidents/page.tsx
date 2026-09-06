@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { Filter, Search } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { api, endpointLabel, usingFixtures } from "@/lib/api";
+import { useMemo, useState } from "react";
+import { endpointLabel, usingFixtures } from "@/lib/api";
+import { useIncidentStore } from "@/lib/store";
 import type { EndpointSummary, Incident, IncidentStatus, RiskBand } from "@/lib/types";
 import { scoreToBand } from "@/lib/utils";
 import { BandBadge } from "@/components/risk/BandBadge";
@@ -16,16 +17,11 @@ const statuses: Array<"all" | IncidentStatus> = ["all", "open", "acknowledged", 
 const bands: Array<"all" | RiskBand> = ["all", "SEVERE", "CRITICAL", "HIGH", "SUSPICIOUS", "SAFE"];
 
 export default function IncidentsPage() {
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [endpoints, setEndpoints] = useState<EndpointSummary[]>([]);
+  const incidents = useIncidentStore((state) => state.incidents);
+  const endpoints = useIncidentStore((state) => state.endpoints);
   const [status, setStatus] = useState<"all" | IncidentStatus>("all");
   const [band, setBand] = useState<"all" | RiskBand>("all");
   const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    api.getIncidents().then(setIncidents).catch(() => undefined);
-    api.getEndpoints().then(setEndpoints).catch(() => undefined);
-  }, []);
 
   const endpointsById = useMemo(() => new Map(endpoints.map((endpoint) => [endpoint.id, endpoint])), [endpoints]);
 

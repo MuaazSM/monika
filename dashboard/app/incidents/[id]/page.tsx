@@ -1,29 +1,37 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect } from "react";
 import { Clock3, Info, ShieldAlert, ShieldCheck } from "lucide-react";
 import { api, endpointLabel } from "@/lib/api";
-import type { EndpointSummary, IncidentDetail, SessionState } from "@/lib/types";
+import { useIncidentStore } from "@/lib/store";
+import type { IncidentDetail } from "@/lib/types";
 import { LadderBadge } from "@/components/risk/LadderBadge";
 import { ScoreBadge } from "@/components/risk/ScoreBadge";
 import { Mono } from "@/components/ui/Mono";
 
 export default function IncidentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const [incident, setIncident] = useState<IncidentDetail | null>(null);
-  const [endpoint, setEndpoint] = useState<EndpointSummary | undefined>(undefined);
-  const [session, setSession] = useState<SessionState | null>(null);
+  // Reads from the shared store so a live incident.explained / session.changed event (the
+  // explanation arriving, an analyst override elsewhere) updates this page without a refetch.
+  const incident = useIncidentStore((state) => state.incidentDetails[id]);
+  const endpoints = useIncidentStore((state) => state.endpoints);
+  const session = useIncidentStore((state) => (incident ? state.sessions[incident.session_key] : undefined));
+  const setIncidentDetail = useIncidentStore((state) => state.setIncidentDetail);
+  const setSession = useIncidentStore((state) => state.setSession);
 
   useEffect(() => {
-    api.getIncident(id).then((detail) => {
-      setIncident(detail);
-      api.getEndpoints().then((endpoints) => setEndpoint(endpoints.find((e) => e.id === detail.endpoint_id))).catch(() => undefined);
-      api.getSession(detail.session_key).then(setSession).catch(() => undefined);
-    }).catch(() => undefined);
-  }, [id]);
+    api
+      .getIncident(id)
+      .then((detail) => {
+        setIncidentDetail(detail);
+        api.getSession(detail.session_key).then(setSession).catch(() => undefined);
+      })
+      .catch(() => undefined);
+  }, [id, setIncidentDetail, setSession]);
 
   if (!incident) return <div className="text-sm text-zinc-500">Loading…</div>;
 
+  const endpoint = endpoints.find((e) => e.id === incident.endpoint_id);
   const currentState = session?.state ?? incident.action_taken;
 
   return (

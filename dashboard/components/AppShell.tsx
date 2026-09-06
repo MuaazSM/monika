@@ -4,7 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Activity, CircleDot, Gauge, LayoutDashboard, Settings, Shield, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
-import { usingFixtures } from "@/lib/api";
+import { api, baseUrl, usingFixtures } from "@/lib/api";
+import { connectToStream } from "@/lib/sse";
+import { useIncidentStore } from "@/lib/store";
 
 const navigation = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
@@ -17,6 +19,8 @@ const navigation = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [clock, setClock] = useState("");
+  const hydrate = useIncidentStore((state) => state.hydrate);
+  const applyEvent = useIncidentStore((state) => state.applyEvent);
 
   useEffect(() => {
     const update = () => setClock(new Intl.DateTimeFormat("en", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "UTC" }).format());
@@ -24,6 +28,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const timer = window.setInterval(update, 1000);
     return () => window.clearInterval(timer);
   }, []);
+
+  // One-time hydration from REST, then the SSE stream keeps the store live (CLAUDE.md §8:
+  // "the dashboard never polls"). Fixture mode has no server to stream from, so it skips
+  // the connection and stays on the one-shot fixture snapshot.
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([api.getIncidents(), api.getEndpoints(), api.getStats()])
+      .then(([incidents, endpoints, stats]) => {
+        if (!cancelled) hydrate({ incidents, endpoints, stats });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrate]);
+
+  useEffect(() => {
+    if (usingFixtures) return;
+    return connectToStream(baseUrl, applyEvent);
+  }, [applyEvent]);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">

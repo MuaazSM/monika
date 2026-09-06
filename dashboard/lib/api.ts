@@ -13,7 +13,7 @@ import endpoints from "@/fixtures/endpoints.json";
 import stats from "@/fixtures/stats.json";
 
 export const usingFixtures = process.env.NEXT_PUBLIC_USE_FIXTURES === "1";
-const baseUrl = process.env.NEXT_PUBLIC_MONIKA_URL ?? "";
+export const baseUrl = process.env.NEXT_PUBLIC_MONIKA_URL ?? "";
 
 async function delay(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
