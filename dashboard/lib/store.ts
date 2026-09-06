@@ -28,6 +28,7 @@ interface IncidentStoreState {
   sessions: Record<string, SessionState>;
   hydrated: boolean;
   hydrate: (data: { incidents: Incident[]; endpoints: EndpointSummary[]; stats: Stats }) => void;
+  setEndpoints: (endpoints: EndpointSummary[]) => void;
   setIncidentDetail: (detail: IncidentDetail) => void;
   setSession: (session: SessionState) => void;
   applyEvent: (event: SseEvent) => void;
@@ -45,7 +46,19 @@ export const useIncidentStore = create<IncidentStoreState>((set) => ({
   stats: emptyStats,
   sessions: {},
   hydrated: false,
-  hydrate: (data) => set({ incidents: data.incidents, endpoints: data.endpoints, stats: data.stats, hydrated: true }),
+  hydrate: (data) =>
+    set({
+      incidents: data.incidents,
+      endpoints: data.endpoints,
+      stats: data.stats,
+      // hydrate() re-syncs the store to a fresh REST snapshot (initial load, or after a
+      // demo-data reset), so any per-id caches from before must be dropped too — otherwise
+      // a reset would leave stale detail/session data behind for ids that no longer exist.
+      incidentDetails: {},
+      sessions: {},
+      hydrated: true,
+    }),
+  setEndpoints: (endpoints) => set({ endpoints }),
   setIncidentDetail: (detail) =>
     set((state) => ({ incidentDetails: { ...state.incidentDetails, [detail.id]: detail } })),
   setSession: (session) =>

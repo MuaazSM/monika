@@ -3,6 +3,7 @@
 import { Check, Loader2, RotateCcw, ShieldCheck, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { api } from "@/lib/api";
+import { useIncidentStore } from "@/lib/store";
 
 type ResetState = "idle" | "running" | "done" | "failed";
 
@@ -22,12 +23,22 @@ const RUNTIME_STATUS: Array<[string, string, boolean]> = [
 export default function SettingsPage() {
   const [resetState, setResetState] = useState<ResetState>("idle");
   const [summary, setSummary] = useState("");
+  const hydrate = useIncidentStore((state) => state.hydrate);
 
   const handleReset = async () => {
     setResetState("running");
     setSummary("");
     try {
       const result = await api.resetDemoData();
+      // reset() bulk-deletes rows without publishing an SSE event (it isn't a per-request
+      // detection outcome), so the store won't otherwise learn incidents/sessions were
+      // cleared — re-hydrate it here from the now-empty REST snapshot.
+      const [incidents, endpoints, stats] = await Promise.all([
+        api.getIncidents(),
+        api.getEndpoints(),
+        api.getStats(),
+      ]);
+      hydrate({ incidents, endpoints, stats });
       setResetState("done");
       setSummary(
         `Cleared ${result.incidents_cleared} incident(s), ${result.signals_cleared} signal(s)` +

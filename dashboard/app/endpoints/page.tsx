@@ -1,7 +1,8 @@
 "use client";
 
 import { LockKeyhole, Search, SlidersHorizontal } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { api } from "@/lib/api";
 import { useIncidentStore } from "@/lib/store";
 import type { EndpointSummary, Incident, ThreatType } from "@/lib/types";
 import { RiskLevelBadge } from "@/components/risk/RiskLevelBadge";
@@ -28,8 +29,16 @@ function topThreatByEndpoint(incidents: Incident[]): Map<string, ThreatType> {
 export default function EndpointsPage() {
   const endpoints = useIncidentStore((state) => state.endpoints);
   const incidents = useIncidentStore((state) => state.incidents);
+  const setEndpoints = useIncidentStore((state) => state.setEndpoints);
   const [query, setQuery] = useState("");
   const [table, setTable] = useState(false);
+
+  // incident_count/max_risk_score/risk_level are a live 30-min-window aggregate computed
+  // server-side per request (monika/app/endpoints/service.py::list_endpoints) — there is no
+  // SSE event for it, so refetch on each visit rather than relying on the app-wide hydrate.
+  useEffect(() => {
+    api.getEndpoints().then(setEndpoints).catch(() => undefined);
+  }, [setEndpoints]);
 
   const topThreats = useMemo(() => topThreatByEndpoint(incidents), [incidents]);
 
