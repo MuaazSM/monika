@@ -269,16 +269,112 @@ stateDiagram-v2
 
 ## 6. How to run
 
+### 6.1 Prerequisites
+
+- **Docker Desktop** (with Compose v2) for the one-command path — this is the recommended way to run everything.
+- For the no-Docker path instead: **Python 3.12** + [`uv`](https://docs.astral.sh/uv/), **Node 20+** + `pnpm`, and a local **Postgres 16** + **Redis 7**.
+- A few GB of free disk — the dashboard's Docker build alone pulls several hundred MB of `node_modules`.
+
+### 6.2 One-time setup
+
 ```bash
-make up                 # build + start postgres, redis, demo-api (seeded), migrations, monika, dashboard, benign traffic
-make demo s=idor        # run an attack scenario: idor | stuffing | sqli | scrape | admin | benign
-make reset              # truncate tables, flush transient redis state, re-seed baselines
-make down               # stop everything and remove volumes
-make test               # unit tests
-make test-int           # real-stack scenario tests (requires `make up`)
+git clone <repo-url> monika && cd monika
+cp .env.example .env
 ```
 
-Wait for the traffic generator to log `learning phase complete` before demoing — that means baselines are populated. For a fast demo, set `MONIKA_LADDER_TIME_DIVISOR=10` so decay happens in seconds instead of minutes.
+The defaults in `.env` work as-is for the Docker path. The one field worth filling in is `MONIKA_ANTHROPIC_API_KEY` — leave it blank and the app still works fully (detection, scoring, enforcement, the dashboard), the LLM explanation panel just shows "unavailable" (rule: the LLM never decides, so nothing else depends on it).
+
+### 6.3 Run the full stack (Docker — recommended)
+
+```bash
+make up
+```
+
+This builds and starts, in dependency order: `postgres`, `redis`, `migrate` (one-shot Alembic), `demo-api` + `seed` (one-shot: creates demo users/orders/products), `monika`, `dashboard`, `seed-baselines` (one-shot: ~3-minute benign learning phase), and `traffic-gen` (continuous benign background traffic).
+
+Tail the learning phase and wait for it to finish before doing anything else:
+
+```bash
+make logs s=seed-baselines
+```
+
+Wait for `learning phase complete`. Baselines aren't populated before that, so D3 (rate) and D4 (exposure) can misbehave on a cold stack.
+
+Once that's printed, open the dashboard:
+
+```
+http://localhost:3000
+```
+
+### 6.4 Run an attack scenario
+
+```bash
+make demo s=idor        # idor | stuffing | sqli | scrape | admin | benign
+```
+
+Watch the dashboard's **Incidents** page — the scenario's incident should appear within a few seconds (see the scenario table further down for what each one should trigger).
+
+### 6.5 Fast-forward the ladder for a live demo
+
+```bash
+make fastmode
+```
+
+Rebuilds and restarts just the `monika` service with `MONIKA_LADDER_TIME_DIVISOR=10`, so ladder decay (NORMAL ⇄ OBSERVE ⇄ ... timers) plays out in seconds instead of minutes. Use this before a live walkthrough; skip it for anything you want to behave at realistic real-world timing.
+
+### 6.6 Reset between demo runs
+
+```bash
+make reset
+```
+
+Truncates `incident`/`signal`/`override`/`request_log`/`session`/`attack_plan`, flushes **all** Redis state, and re-runs the 3-minute learning phase from scratch. **Run this before every rehearsal.** Baselines and detector counters drift across ad-hoc restarts — a stale baseline from an earlier session is the most common cause of a detector misfiring on traffic that looks completely normal (see Troubleshooting below).
+
+### 6.7 Tests and lint
+
+```bash
+make test        # backend unit tests — just needs `uv sync`, no Docker
+make test-int    # real-stack scenario tests — requires `make up` to be running
+make lint        # ruff + mypy (backend); eslint + next build + tsc --noEmit (frontend)
+make lint-arch   # import-linter: enforces the one-way module dependency rules (§1)
+```
+
+`make test-int` drives every attack scenario through the real proxy + real demo API (never mocked) and asserts the expected `threat_type` and minimum score from the scenario table further down, plus that benign traffic alone never produces an incident ≥ 30.
+
+### 6.8 Running without Docker (local dev)
+
+**Backend:**
+
+```bash
+cd monika
+uv sync
+# point MONIKA_DATABASE_URL / MONIKA_REDIS_URL in .env at your own Postgres/Redis first
+uv run alembic upgrade head
+uv run uvicorn app.main:app --reload --port 8000
+```
+
+**Frontend:**
+
+```bash
+cd dashboard
+pnpm install
+NEXT_PUBLIC_MONIKA_URL=http://localhost:8000 pnpm dev
+```
+
+Open `http://localhost:3000`. To work on the UI with no backend at all, use static fixtures instead: `NEXT_PUBLIC_USE_FIXTURES=1 pnpm dev`.
+
+### 6.9 Stopping and cleaning up
+
+```bash
+make down        # stop every container and remove the postgres volume
+```
+
+### Troubleshooting
+
+- **Dashboard shows no data / CORS errors in the browser console** — check `MONIKA_CORS_ORIGINS` in `.env` (default `http://localhost:3000`) includes whatever origin you're loading the dashboard from.
+- **A detector fires on completely normal traffic** — baselines have drifted, almost always from repeated ad-hoc restarts without a clean reset in between. Run `make reset` and re-test.
+- **`make up` / any `docker` command hangs indefinitely** — Docker Desktop's daemon can wedge, particularly after the host disk got close to full. Quit Docker Desktop fully (if the app won't quit, `pkill -f com.docker.backend`), relaunch it, wait for `docker version` to return cleanly, then retry.
+- **Host disk is full** — `docker system prune -af --volumes` reclaims space, but it removes *every* unused image/container/volume on the machine, not just this project's. Only run it if you're fine with that scope, or free space some other way first.
 
 ### Ports
 
