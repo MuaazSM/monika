@@ -13,7 +13,11 @@ DEMO_PID=$!
 
 cd /app/monika
 .venv/bin/alembic upgrade head
-.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port "$PORT" &
+# The Simulator (app/simulator/service.py) replays scenarios through Monika's own proxy via
+# MONIKA_SELF_URL, which defaults to localhost:8000 — wrong here since Render assigns $PORT
+# dynamically. Without this, every Simulator run fails with a connection error.
+MONIKA_SELF_URL="http://127.0.0.1:$PORT" \
+  .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port "$PORT" &
 MONIKA_PID=$!
 
 trap 'kill "$DEMO_PID" "$MONIKA_PID" 2>/dev/null' TERM INT
