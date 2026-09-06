@@ -42,6 +42,7 @@ async def compute_stats(
     now: datetime,
     redis: Redis,
     endpoint_ids: list[UUID],
+    explainer_available: bool = False,
 ) -> StatsOut:
     window_start = now - timedelta(minutes=WINDOW_MINUTES)
 
@@ -159,4 +160,5 @@ async def compute_stats(
         benign_by_rung=benign_by_rung,
         window_minutes=WINDOW_MINUTES,
         learning=learning,
+        explainer_available=explainer_available,
     )

@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dashboard-fixtures",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd dashboard && NEXT_PUBLIC_USE_FIXTURES=1 npx next dev -p $PORT"],
+      "port": 3100,
+      "autoPort": true
+    }
+  ]
+}

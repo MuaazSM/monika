@@ -15,15 +15,19 @@ const LADDER = [
   ["Revoke", "score = 100"],
 ];
 
-const RUNTIME_STATUS: Array<[string, string, boolean]> = [
-  ["Detection engine", "Protected", true],
-  ["LLM explainer", "Enabled after decision", true],
-];
-
 export default function SettingsPage() {
   const [resetState, setResetState] = useState<ResetState>("idle");
   const [summary, setSummary] = useState("");
   const hydrate = useIncidentStore((state) => state.hydrate);
+  const explainerAvailable = useIncidentStore((state) => state.stats.explainer_available);
+  const runtimeStatus: Array<[string, string, boolean]> = [
+    ["Detection engine", "Protected", true],
+    [
+      "LLM explainer",
+      explainerAvailable ? "Enabled after decision" : "Unavailable — no API key configured",
+      explainerAvailable,
+    ],
+  ];
 
   const handleReset = async () => {
     setResetState("running");
@@ -65,7 +69,7 @@ export default function SettingsPage() {
         <section className="console-card p-5">
           <h2 className="text-sm font-medium text-zinc-200">Runtime status</h2>
           <div className="mt-5 space-y-3">
-            {RUNTIME_STATUS.map(([name, value, okay]) => (
+            {runtimeStatus.map(([name, value, okay]) => (
               <div key={name} className="flex items-center justify-between rounded-md bg-zinc-950/60 px-3 py-3 text-xs">
                 <span className="text-zinc-400">{name}</span>
                 <span className="flex items-center gap-2 text-zinc-500">{okay ? <Check size={14} className="text-emerald-400" /> : <span className="size-1.5 rounded-full bg-amber-400" />}{value}</span>

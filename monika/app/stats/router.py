@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request
 
+from ..settings import get_settings
 from . import service
 from .models import StatsOut
 
@@ -20,9 +21,12 @@ async def get_stats(request: Request) -> StatsOut:
     endpoint_ids = [
         ep.endpoint_id for ep in request.app.state.endpoints.endpoints if not ep.admin_only
     ]
+    settings = get_settings()
     return await service.compute_stats(
         request.app.state.session_factory,
         now=datetime.now(UTC),
         redis=request.app.state.redis,
         endpoint_ids=endpoint_ids,
+        explainer_available=settings.explainer_enabled
+        and (settings.explainer_fallback or bool(settings.anthropic_api_key)),
     )

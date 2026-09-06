@@ -11,6 +11,7 @@ export const emptyStats: Stats = {
   benign_by_rung: {},
   window_minutes: 30,
   learning: true,
+  explainer_available: false,
 };
 
 function upsertIncident(list: Incident[], incident: Incident): Incident[] {

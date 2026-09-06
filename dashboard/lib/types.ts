@@ -136,6 +136,8 @@ export interface Stats {
   window_minutes: number;
   // True until every configured endpoint has >= 30 baseline samples.
   learning: boolean;
+  // False when MONIKA_ANTHROPIC_API_KEY is empty and no fallback is configured.
+  explainer_available: boolean;
 }
 
 // SimulateRun (monika/app/simulator/router.py)

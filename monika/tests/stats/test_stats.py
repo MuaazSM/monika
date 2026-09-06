@@ -157,3 +157,13 @@ async def test_learning_until_every_endpoint_has_baseline_samples(sf, redis) -> 
         await record_request(redis, b, 100, NOW.timestamp())
     stats = await compute_stats(sf, now=NOW, redis=redis, endpoint_ids=[a, b])
     assert stats.learning is False  # both endpoints reached the 30-sample floor
+
+
+async def test_explainer_available_defaults_false(sf, redis) -> None:
+    stats = await _stats(sf, redis)
+    assert stats.explainer_available is False
+
+
+async def test_explainer_available_reflects_caller(sf, redis) -> None:
+    stats = await compute_stats(sf, now=NOW, redis=redis, endpoint_ids=[], explainer_available=True)
+    assert stats.explainer_available is True

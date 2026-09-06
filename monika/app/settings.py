@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,6 +19,18 @@ class Settings(BaseSettings):
     )
 
     database_url: str = "postgresql+asyncpg://monika:monika@postgres:5432/monika"
+
+    @field_validator("database_url")
+    @classmethod
+    def _require_asyncpg_driver(cls, v: str) -> str:
+        """Managed Postgres providers (Render, Heroku, ...) hand out bare postgres://
+        or postgresql:// DSNs. Both engine.py and alembic/env.py pass this straight to
+        SQLAlchemy, which would silently pick the sync psycopg2 driver instead — not
+        installed here, and the wrong driver for the async engine either way."""
+        for prefix in ("postgres://", "postgresql://"):
+            if v.startswith(prefix):
+                return "postgresql+asyncpg://" + v[len(prefix) :]
+        return v
     redis_url: str = "redis://redis:6379/0"
     upstream_url: str = "http://demo-api:9000"
     jwt_secret: str = "dev-insecure-secret-change-me"

@@ -19,3 +19,6 @@ class StatsOut(BaseModel):
     # True until every configured endpoint has >= 30 samples (detection.baselines.
     # baselines_ready) — the dashboard's "Learning" badge (CLAUDE.md §11.2 demo checklist).
     learning: bool = False
+    # False when MONIKA_ANTHROPIC_API_KEY is empty and no fallback is configured — mirrors
+    # ExplainerWorker._raw_explanation's no-op conditions exactly (CLAUDE.md §6).
+    explainer_available: bool = False

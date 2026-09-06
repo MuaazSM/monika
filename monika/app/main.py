@@ -134,7 +134,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await asyncio.sleep(2)
             try:
                 stats = await compute_stats(
-                    session_factory, now=datetime.now(UTC), redis=redis, endpoint_ids=endpoint_ids
+                    session_factory,
+                    now=datetime.now(UTC),
+                    redis=redis,
+                    endpoint_ids=endpoint_ids,
+                    explainer_available=settings.explainer_enabled
+                    and (settings.explainer_fallback or bool(settings.anthropic_api_key)),
                 )
                 app.state.broadcaster.publish("stats.tick", stats)
             except Exception:  # a stats hiccup must never kill the ticker
