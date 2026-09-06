@@ -1,5 +1,4 @@
 # Monika — CLAUDE.md §4.
-# Targets whose subject does not exist yet echo the ticket that delivers them and exit 0.
 
 .PHONY: up down logs test test-int lint lint-arch lint-py lint-ts seed demo reset fastmode types openapi help
 
@@ -24,28 +23,16 @@ lint-py:
 	cd monika && uv run ruff check . && uv run ruff format --check . && uv run mypy
 
 lint-ts:
-	@if [ -d dashboard ]; then \
-		cd dashboard && pnpm lint && pnpm exec tsc --noEmit; \
-	else \
-		echo "lint (frontend): not implemented yet (T11 — dashboard/ does not exist)"; \
-	fi
+	cd dashboard && pnpm lint && pnpm build && pnpm exec tsc --noEmit
 
 lint-arch: ## import-linter contracts (module direction)
 	cd monika && uv run lint-imports
 
 test: ## pytest (monika/tests)
-	@if ls monika/tests/**/test_*.py monika/tests/test_*.py >/dev/null 2>&1; then \
-		cd monika && uv run pytest; \
-	else \
-		echo "test: not implemented yet (T5 — no tests until the detectors land)"; \
-	fi
+	cd monika && uv run pytest --ignore=tests/integration
 
 test-int: ## integration tests; requires `make up` running
-	@if [ -d monika/tests/integration ]; then \
-		cd monika && uv run pytest tests/integration; \
-	else \
-		echo "test-int: not implemented yet (T9 — needs traffic-gen scenarios)"; \
-	fi
+	cd monika && uv run pytest tests/integration
 
 seed: ## re-run demo-api seed + baseline learning phase
 	docker compose up -d postgres redis migrate demo-api monika
@@ -60,10 +47,13 @@ demo: ## run a traffic-gen scenario: make demo s=idor
 	docker compose run --rm traffic-gen python -m traffic_gen $(s)
 
 reset: ## truncate tables, flush redis, re-seed baselines
-	@echo "reset: not implemented yet (T8 — no tables exist before the incident service)"
+	docker compose exec -T postgres psql -U monika -d monika \
+		-c "TRUNCATE incident, signal, override, request_log, session, attack_plan CASCADE;"
+	docker compose exec -T redis redis-cli FLUSHALL
+	docker compose run --rm seed-baselines
 
 fastmode: ## MONIKA_LADDER_TIME_DIVISOR=10 for demos
-	@echo "fastmode: not implemented yet (T7 — the ladder has no decay to speed up yet)"
+	MONIKA_LADDER_TIME_DIVISOR=10 docker compose up --build -d monika
 
 types: ## regenerate dashboard/lib/types.ts from the OpenAPI schema
-	@echo "types: not implemented yet (T11 — dashboard/ does not exist)"
+	@echo "types: not implemented yet — dashboard/lib/types.ts is hand-maintained; no codegen tool wired up"

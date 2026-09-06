@@ -1,5 +1,4 @@
-# Monika — T1 compose skeleton (PRD §11.3).
-# dashboard (T11) and traffic-gen (T9) services are added in later phases.
+# Monika — full stack (PRD §11.3): postgres, redis, demo-api, monika, dashboard, traffic-gen.
 
 name: monika
 
@@ -84,6 +83,7 @@ services:
       MONIKA_LADDER_TIME_DIVISOR: ${MONIKA_LADDER_TIME_DIVISOR:-1}
       MONIKA_RATE_FLOOR_RPM: ${MONIKA_RATE_FLOOR_RPM:-20}
       MONIKA_ENDPOINTS_CONFIG: ${MONIKA_ENDPOINTS_CONFIG:-config/endpoints.yaml}
+      MONIKA_CORS_ORIGINS: ${MONIKA_CORS_ORIGINS:-http://localhost:3000}
     depends_on:
       postgres:
         condition: service_healthy
@@ -112,6 +112,18 @@ services:
       seed:
         condition: service_completed_successfully
     restart: "no"
+
+  dashboard:
+    build:
+      context: ./dashboard
+      args:
+        # Runs in the analyst's browser, so it must resolve on the host, not the docker network.
+        NEXT_PUBLIC_MONIKA_URL: ${NEXT_PUBLIC_MONIKA_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      monika:
+        condition: service_started
 
   traffic-gen:
     build: ./traffic-gen

@@ -56,7 +56,7 @@ async def _reset() -> None:
     # (a flushdb would make D3 fire spuriously on any burst and preempt the D4 scrape rule).
     patterns = (
         "ladder:* blocked_attempts:* enum:* enum_owner:* auth_signals:* rate:* "
-        "login_fail:* login_users:* revoked_jti:* exposure_reads:*"
+        "login_fail:* login_users:* revoked_jti:* exposure_pages:*"
     )
     script = (
         f'for p in {patterns}; do redis-cli --scan --pattern "$p" | xargs -r redis-cli del; done; '

@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     endpoints_config: str = "config/endpoints.yaml"
     # Monika's own base URL, for the Simulator to replay attacks through its own proxy.
     self_url: str = "http://localhost:8000"
+    # Comma-separated browser origins allowed to call the control plane (the dashboard).
+    cors_origins: str = "http://localhost:3000"
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
 
 @lru_cache

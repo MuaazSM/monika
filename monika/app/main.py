@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -170,6 +171,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     configure_logging()
     app = FastAPI(title="Monika", version="0.1.0", lifespan=lifespan)
     app.state.settings = settings or get_settings()
+    # The dashboard is a separate origin (browser fetch + SSE); no cookies/credentials involved.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=app.state.settings.cors_origin_list,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     app.include_router(router)
     app.include_router(incidents_router)
     app.include_router(sse_router)
