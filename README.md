@@ -1,5 +1,7 @@
 # Monika — an adaptive API security gateway
 
+## [**🔗 Live demo: monika.gdgmpstme.com**](https://monika.gdgmpstme.com)
+
 A FastAPI reverse proxy sits in front of a deliberately vulnerable demo API, captures every request+response, and runs four deterministic detectors (auth/BOLA, enumeration, rate/behavior, payload/exposure). Signals become a 0–100 risk score, which drives a per-session response ladder: `NORMAL → OBSERVE → RATE_LIMIT → CHALLENGE → BLOCK → REVOKE`. A dashboard shows every incident with its evidence, lets an analyst override, and displays an LLM-written explanation that arrives *after* the decision was enforced.
 
 The point Monika makes: **the engine decides with numbers and evidence; the language model only explains, after the fact.** Confidence, scores, and enforcement are all computed by deterministic code you can read and test. The LLM never votes.
