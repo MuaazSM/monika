@@ -83,8 +83,17 @@ async def reset_demo_data(
             "CursorResult[Any]",
             await session.execute(delete(IncidentRow).where(IncidentRow.id.not_in(overridden_ids))),
         )
+        # A preserved (overridden) incident carries a FK to its session row (incident_
+        # session_key_fkey), so deleting every session unconditionally throws a
+        # ForeignKeyViolationError as soon as any override exists — exclude the sessions a
+        # preserved incident still references, same as the incidents/signals exclusion above.
+        preserved_session_keys = select(IncidentRow.session_key).where(
+            IncidentRow.id.in_(overridden_ids)
+        )
         await session.execute(delete(RequestLog))
-        await session.execute(delete(SessionRow))
+        await session.execute(
+            delete(SessionRow).where(SessionRow.session_key.not_in(preserved_session_keys))
+        )
         await session.execute(delete(AttackPlanRow))
         await session.commit()
 

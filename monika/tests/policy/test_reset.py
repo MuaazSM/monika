@@ -10,7 +10,7 @@ import httpx
 import pytest
 from fakeredis import aioredis
 from fastapi import FastAPI
-from sqlalchemy import select
+from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.db.base import Base
@@ -30,6 +30,14 @@ EID = uuid4()
 @pytest.fixture
 async def sf():
     engine = create_async_engine("sqlite+aiosqlite://", future=True)
+
+    # SQLite ignores FK constraints unless told otherwise — turn enforcement on so a
+    # regression here (e.g. deleting a session a preserved incident still references) fails
+    # the test the same way Postgres rejects it in production, instead of silently passing.
+    @event.listens_for(engine.sync_engine, "connect")
+    def _enable_fk(dbapi_conn, _):
+        dbapi_conn.execute("PRAGMA foreign_keys=ON")
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield async_sessionmaker(engine, expire_on_commit=False)
@@ -70,6 +78,7 @@ async def test_reset_clears_incidents_without_overrides(app, sf) -> None:
     async with sf() as s:
         s.add(EndpointConfigRow(id=EID, method="GET", path_pattern="/api/x", auth_required=False))
         s.add(SessionRow(session_key="1", ladder_state="BLOCK", current_score=90))
+        await s.flush()  # session/endpoint rows must exist before an incident FKs to them
         plain = _incident("1")
         s.add(plain)
         s.add(
@@ -99,9 +108,20 @@ async def test_reset_clears_incidents_without_overrides(app, sf) -> None:
 
 
 async def test_reset_never_deletes_overridden_incidents_or_overrides(app, sf) -> None:
-    """Rule 6: an incident with an override — and the override itself — survive a reset."""
+    """Rule 6: an incident with an override — and the override itself — survive a reset.
+
+    Also a regression test for a real bug: SessionRow was deleted unconditionally, but
+    IncidentRow.session_key has a FK to it, so this crashed with a ForeignKeyViolationError
+    on Postgres as soon as any override existed and its session row was still present —
+    SQLite's default FK-checks-off behavior let the original test pass despite the bug.
+    """
     async with sf() as s:
         s.add(EndpointConfigRow(id=EID, method="GET", path_pattern="/api/x", auth_required=False))
+        # The preserved incident's own session must survive too (FK) ...
+        s.add(SessionRow(session_key="2", ladder_state="BLOCK", current_score=90))
+        # ... while an unrelated session with no surviving incident must still be cleared.
+        s.add(SessionRow(session_key="3", ladder_state="NORMAL", current_score=0))
+        await s.flush()  # session/endpoint rows must exist before an incident FKs to them
         overridden = _incident("2", status="overridden")
         s.add(overridden)
         s.add(
@@ -140,6 +160,10 @@ async def test_reset_never_deletes_overridden_incidents_or_overrides(app, sf) ->
         assert [i.id for i in remaining] == [overridden_id]
         assert len((await s.execute(select(OverrideRow))).scalars().all()) == 1
         assert len((await s.execute(select(SignalRow))).scalars().all()) == 1
+        remaining_sessions = {
+            r.session_key for r in (await s.execute(select(SessionRow))).scalars().all()
+        }
+        assert remaining_sessions == {"2"}  # preserved incident's session kept, "3" cleared
 
 
 async def test_reset_clears_transient_redis_but_keeps_baselines(app) -> None:
