@@ -17,6 +17,7 @@ from .models import (
     IncidentListOut,
     IncidentOut,
     OverrideOut,
+    RequestLogOut,
     SessionStateOut,
     SignalOut,
 )
@@ -46,13 +47,14 @@ async def get_incident(request: Request, incident_id: UUID) -> IncidentDetailOut
     result = await service.get_incident(request.app.state.session_factory, incident_id)
     if result is None:
         raise HTTPException(status_code=404, detail="incident not found")
-    incident, signals, overrides = result
+    incident, signals, overrides, timeline = result
     return IncidentDetailOut(
         **IncidentOut.model_validate(incident).model_dump(),
         llm_explanation=incident.llm_explanation,
         llm_next_step=incident.llm_next_step,
         signals=[SignalOut.model_validate(s) for s in signals],
         overrides=[OverrideOut.model_validate(o) for o in overrides],
+        request_timeline=[RequestLogOut.model_validate(r) for r in timeline],
     )
 
 

@@ -4,15 +4,16 @@ mirror baseline snapshots on write (display only — DECISIONS.md D-03)."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import CursorResult, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ..incidents.models import EndpointConfigRow, IncidentRow
 from .loader import EndpointRegistry
-from .models import EndpointOut
+from .models import EndpointOut, EndpointUpdateIn
 
 
 async def sync_registry_to_db(
@@ -114,6 +115,7 @@ async def list_endpoints(
                 id=r.id,
                 method=r.method,
                 path_pattern=r.path_pattern,
+                owner_field=r.owner_field,
                 auth_required=r.auth_required,
                 admin_only=r.admin_only,
                 sensitive_fields=list(r.sensitive_fields or []),
@@ -127,3 +129,44 @@ async def list_endpoints(
         )
     out.sort(key=lambda e: e.path_pattern)
     return out
+
+
+async def update_endpoint(
+    session_factory: async_sessionmaker[AsyncSession],
+    registry: EndpointRegistry,
+    endpoint_id: UUID,
+    body: EndpointUpdateIn,
+    *,
+    now: datetime,
+) -> EndpointOut | None:
+    """PUT /_monika/endpoints/{id}: update owner_field/sensitive_fields/auth_required both in
+    the live matcher (so detection changes on the next request) and the display row. Returns
+    the refreshed EndpointOut, or None if no endpoint has this id."""
+    new_ep = registry.update(
+        endpoint_id,
+        owner_field=body.owner_field,
+        sensitive_fields=tuple(body.sensitive_fields),
+        auth_required=body.auth_required,
+    )
+    if new_ep is None:
+        return None
+
+    async with session_factory() as session:
+        result = cast(
+            "CursorResult[Any]",
+            await session.execute(
+                update(EndpointConfigRow)
+                .where(EndpointConfigRow.id == endpoint_id)
+                .values(
+                    owner_field=body.owner_field,
+                    sensitive_fields=body.sensitive_fields,
+                    auth_required=body.auth_required,
+                )
+            ),
+        )
+        await session.commit()
+        if result.rowcount == 0:
+            return None
+
+    rows = await list_endpoints(session_factory, now=now)
+    return next((r for r in rows if r.id == endpoint_id), None)

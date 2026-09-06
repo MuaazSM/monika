@@ -328,7 +328,7 @@ Rebuilds and restarts just the `monika` service with `MONIKA_LADDER_TIME_DIVISOR
 make reset
 ```
 
-Truncates `incident`/`signal`/`override`/`request_log`/`session`/`attack_plan`, flushes **all** Redis state, and re-runs the 3-minute learning phase from scratch. **Run this before every rehearsal.** Baselines and detector counters drift across ad-hoc restarts — a stale baseline from an earlier session is the most common cause of a detector misfiring on traffic that looks completely normal (see Troubleshooting below).
+Truncates `incident`/`signal`/`request_log`/`session`/`attack_plan`, flushes **all** Redis state, and re-runs the 3-minute learning phase from scratch. `override` rows are never deleted (rule 6), and any incident or session they still reference survives the reset intact. **Run this before every rehearsal.** Baselines and detector counters drift across ad-hoc restarts — a stale baseline from an earlier session is the most common cause of a detector misfiring on traffic that looks completely normal (see Troubleshooting below).
 
 ### 6.7 Tests and lint
 

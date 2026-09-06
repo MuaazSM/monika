@@ -80,3 +80,33 @@ async def test_no_detectors_returns_empty() -> None:
     redis = aioredis.FakeRedis(decode_responses=True)
     assert await run_detectors([], _ctx(), redis) == []
     await redis.aclose()
+
+
+async def test_first_detector_completes_before_the_rest_start() -> None:
+    # Implementation-Backend.md Phase 4.5: D1 must finish (including its Redis writes)
+    # before D2/D3/D4 start, so a shared Redis read in one of the others reflects D1's write
+    # from the SAME request rather than racing it.
+    order: list[str] = []
+
+    class First:
+        name = "first"
+
+        async def run(self, ctx, redis):
+            order.append("first-start")
+            await redis.set("shared", "written-by-first")
+            order.append("first-end")
+            return []
+
+    class Second:
+        name = "second"
+
+        async def run(self, ctx, redis):
+            order.append("second-start")
+            value = await redis.get("shared")
+            order.append(f"second-saw:{value}")
+            return []
+
+    redis = aioredis.FakeRedis(decode_responses=True)
+    await run_detectors([First(), Second()], _ctx(), redis)
+    await redis.aclose()
+    assert order == ["first-start", "first-end", "second-start", "second-saw:written-by-first"]

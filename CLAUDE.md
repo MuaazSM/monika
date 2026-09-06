@@ -83,7 +83,7 @@ make lint          # ruff + mypy (backend), eslint + tsc (frontend)
 make lint-arch     # import-linter contracts (module direction)
 make seed          # re-run demo-api seed + baseline learning phase
 make demo s=idor   # run a traffic-gen scenario: idor | stuffing | sqli | scrape | admin | benign
-make reset         # truncate incidents/signals/overrides/request_log, flush redis, re-seed baselines
+make reset         # truncate incidents/signals/request_log (never OVERRIDE rows or the incidents/sessions they reference — rule 6), flush redis, re-seed baselines
 make fastmode      # sets MONIKA_LADDER_TIME_DIVISOR=10 for demos (decay in seconds instead of minutes)
 ```
 
@@ -148,6 +148,7 @@ class Detector(Protocol):
 ```
 baseline:{endpoint_id}:rpm                        HASH mean,std,n
 baseline:{endpoint_id}:bytes                      HASH mean,n
+baseline:{endpoint_id}:bucket:{minute}            INT  TTL 660  (per-minute request count backing the rpm rolling window)
 rate:{session_key}:{endpoint_id}:{minute}         INT  TTL 120
 rate:{session_key}:{minute}                       INT  TTL 120
 enum:{session_key}:{endpoint_id}                  ZSET member=object_id score=ts, TTL 300

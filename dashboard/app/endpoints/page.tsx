@@ -8,8 +8,16 @@ import type { EndpointSummary, Incident, ThreatType } from "@/lib/types";
 import { RiskLevelBadge } from "@/components/risk/RiskLevelBadge";
 import { ThreatTypeLabel } from "@/components/risk/ThreatTypeLabel";
 import { Mono } from "@/components/ui/Mono";
+import { EndpointSheet } from "@/components/EndpointSheet";
 
 const riskOrder = { red: 0, amber: 1, green: 2 };
+// No hardcoded risk colours outside components/risk/ — this borrows RiskLevelBadge's own
+// token map instead of a second, separately-maintained one.
+const riskBorder: Record<EndpointSummary["risk_level"], string> = {
+  red: "border-l-red-500",
+  amber: "border-l-amber-400",
+  green: "border-l-zinc-700",
+};
 
 function topThreatByEndpoint(incidents: Incident[]): Map<string, ThreatType> {
   const counts = new Map<string, Map<ThreatType, number>>();
@@ -32,6 +40,7 @@ export default function EndpointsPage() {
   const setEndpoints = useIncidentStore((state) => state.setEndpoints);
   const [query, setQuery] = useState("");
   const [table, setTable] = useState(false);
+  const [editing, setEditing] = useState<EndpointSummary | null>(null);
 
   // incident_count/max_risk_score/risk_level are a live 30-min-window aggregate computed
   // server-side per request (monika/app/endpoints/service.py::list_endpoints) — there is no
@@ -59,14 +68,37 @@ export default function EndpointsPage() {
           <button type="button" onClick={() => setTable(!table)} className="console-toggle"><SlidersHorizontal size={14} /> {table ? "Grid" : "Table"}</button>
         </div>
       </header>
-      {table ? <EndpointTable endpoints={visible} topThreats={topThreats} /> : <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{visible.map((endpoint) => <EndpointTile key={endpoint.id} endpoint={endpoint} topThreat={topThreats.get(endpoint.id)} />)}</div>}
+      {table ? (
+        <EndpointTable endpoints={visible} topThreats={topThreats} onEdit={setEditing} />
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {visible.map((endpoint) => (
+            <EndpointTile key={endpoint.id} endpoint={endpoint} topThreat={topThreats.get(endpoint.id)} onEdit={setEditing} />
+          ))}
+        </div>
+      )}
+      {editing && <EndpointSheet endpoint={editing} onClose={() => setEditing(null)} />}
     </div>
   );
 }
 
-function EndpointTile({ endpoint, topThreat }: { endpoint: EndpointSummary; topThreat: ThreatType | undefined }) {
+function EndpointTile({
+  endpoint,
+  topThreat,
+  onEdit,
+}: {
+  endpoint: EndpointSummary;
+  topThreat: ThreatType | undefined;
+  onEdit: (endpoint: EndpointSummary) => void;
+}) {
   return (
-    <article className={`console-card border-l-2 p-4 ${endpoint.risk_level === "green" ? "border-l-zinc-700" : endpoint.risk_level === "amber" ? "border-l-amber-400" : "border-l-red-500"}`}>
+    <article
+      role="button"
+      tabIndex={0}
+      onClick={() => onEdit(endpoint)}
+      onKeyDown={(event) => (event.key === "Enter" || event.key === " ") && onEdit(endpoint)}
+      className={`console-card cursor-pointer border-l-2 p-4 transition-colors hover:bg-zinc-900/40 ${riskBorder[endpoint.risk_level]}`}
+    >
       <div className="flex items-start justify-between gap-3">
         <Mono className="text-sm text-zinc-200">{endpoint.method} {endpoint.path_pattern}</Mono>
         <RiskLevelBadge level={endpoint.risk_level} />
@@ -84,7 +116,15 @@ function EndpointTile({ endpoint, topThreat }: { endpoint: EndpointSummary; topT
   );
 }
 
-function EndpointTable({ endpoints, topThreats }: { endpoints: EndpointSummary[]; topThreats: Map<string, ThreatType> }) {
+function EndpointTable({
+  endpoints,
+  topThreats,
+  onEdit,
+}: {
+  endpoints: EndpointSummary[];
+  topThreats: Map<string, ThreatType>;
+  onEdit: (endpoint: EndpointSummary) => void;
+}) {
   return (
     <div className="console-card overflow-x-auto">
       <table className="w-full min-w-[720px] text-left text-sm">
@@ -95,7 +135,7 @@ function EndpointTable({ endpoints, topThreats }: { endpoints: EndpointSummary[]
           {endpoints.map((endpoint) => {
             const topThreat = topThreats.get(endpoint.id);
             return (
-              <tr key={endpoint.id} className="hover:bg-zinc-900">
+              <tr key={endpoint.id} onClick={() => onEdit(endpoint)} className="cursor-pointer hover:bg-zinc-900">
                 <td className="px-4 py-3"><Mono>{endpoint.method} {endpoint.path_pattern}</Mono></td>
                 <td className="px-4 py-3"><RiskLevelBadge level={endpoint.risk_level} /></td>
                 <td className="px-4 py-3"><Mono>{endpoint.baseline_rpm_mean.toFixed(1)}</Mono></td>

@@ -112,7 +112,7 @@ class SignalRow(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(), primary_key=True, default=uuid.uuid4)
     incident_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid(), ForeignKey("incident.id"), nullable=False
+        Uuid(), ForeignKey("incident.id"), nullable=False, index=True
     )
     category: Mapped[str] = mapped_column(String, nullable=False)
     severity: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -164,6 +164,10 @@ class RequestLog(Base):
     __table_args__ = (
         # precision window: "over the last 30 minutes" (§10.4)
         Index("ix_request_log_created_at", "created_at"),
+        # incident-detail request timeline: last 50 rows for one session
+        Index("ix_request_log_session_created", "session_key", "created_at"),
+        # precision panel: attack-labelled rows that reached >= RATE_LIMIT
+        Index("ix_request_log_label_action_created", "label", "action_applied", "created_at"),
     )
 
 
@@ -228,11 +232,31 @@ class IncidentOut(BaseModel):
     updated_at: datetime
 
 
+class RequestLogOut(BaseModel):
+    """One REQUEST_LOG row, as rendered in the incident detail's request timeline
+    (Implementation-Backend.md Phase 7.1, PRD §10.3 "REQUEST TIMELINE")."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    request_id: str
+    method: str
+    path: str
+    status_code: int
+    resp_bytes: int
+    latency_ms: int
+    action_applied: str
+    label: str | None
+    created_at: datetime
+
+
 class IncidentDetailOut(IncidentOut):
     llm_explanation: str | None
     llm_next_step: str | None
     signals: list[SignalOut]
     overrides: list[OverrideOut]
+    # Last 50 REQUEST_LOG rows for this incident's session, oldest first — lets the dashboard
+    # show 200s turning into 401/403/429 as the ladder escalates (PRD §10.3, §13.1).
+    request_timeline: list[RequestLogOut]
 
 
 class IncidentListOut(BaseModel):

@@ -12,9 +12,21 @@
   "llm_explanation":null,
   "llm_next_step":null,
   "signals":[
-    {"id":"b1000000-0000-4000-8000-000000000001","category":"auth","severity":85,"evidence":{"jwt_sub":742,"requested_object_id":743,"object_owner_id":743,"ownership_match":false,"sensitive_field_present":true},"request_id":"req-001","session_key":"742","endpoint_id":"2b717ea9-622e-5252-be32-25987060fede","created_at":"2026-09-06T09:00:10Z"},
-    {"id":"b1000000-0000-4000-8000-000000000002","category":"enum","severity":60,"evidence":{"distinct_ids":6,"window_seconds":60,"monotonic_run":6},"request_id":"req-007","session_key":"742","endpoint_id":"2b717ea9-622e-5252-be32-25987060fede","created_at":"2026-09-06T09:01:00Z"},
-    {"id":"b1000000-0000-4000-8000-000000000003","category":"rate","severity":55,"evidence":{"z_score":5.1,"rpm":410,"baseline_mean":89.3},"request_id":"req-012","session_key":"742","endpoint_id":"2b717ea9-622e-5252-be32-25987060fede","created_at":"2026-09-06T09:01:45Z"}
+    {"id":"b1000000-0000-4000-8000-000000000001","category":"auth","severity":85,"evidence":{"jwt_sub":742,"requested_object":743,"object_owner":743,"sensitive_fields_present":true,"prior_auth_signals_5m":3},"request_id":"req-001","session_key":"742","endpoint_id":"2b717ea9-622e-5252-be32-25987060fede","created_at":"2026-09-06T09:00:10Z"},
+    {"id":"b1000000-0000-4000-8000-000000000002","category":"enum","severity":60,"evidence":{"ids_seen_60s":6,"longest_sequential_run":6,"distinct_owners":6,"first_id":743,"last_id":748},"request_id":"req-007","session_key":"742","endpoint_id":"2b717ea9-622e-5252-be32-25987060fede","created_at":"2026-09-06T09:01:00Z"},
+    {"id":"b1000000-0000-4000-8000-000000000003","category":"rate","severity":55,"evidence":{"rpm":411,"baseline_mean":90,"baseline_std":63,"z_score":5.1,"deviation_ratio":4.567},"request_id":"req-012","session_key":"742","endpoint_id":"2b717ea9-622e-5252-be32-25987060fede","created_at":"2026-09-06T09:01:45Z"}
   ],
-  "overrides":[]
+  "overrides":[],
+  "request_timeline":[
+    {"request_id":"req-001","method":"GET","path":"/api/users/743","status_code":200,"resp_bytes":412,"latency_ms":18,"action_applied":"allow","label":"attack:idor","created_at":"2026-09-06T09:00:10Z"},
+    {"request_id":"req-002","method":"GET","path":"/api/users/744","status_code":200,"resp_bytes":408,"latency_ms":16,"action_applied":"allow","label":"attack:idor","created_at":"2026-09-06T09:00:20Z"},
+    {"request_id":"req-003","method":"GET","path":"/api/users/745","status_code":200,"resp_bytes":415,"latency_ms":17,"action_applied":"allow","label":"attack:idor","created_at":"2026-09-06T09:00:30Z"},
+    {"request_id":"req-004","method":"GET","path":"/api/users/746","status_code":200,"resp_bytes":410,"latency_ms":15,"action_applied":"allow","label":"attack:idor","created_at":"2026-09-06T09:00:40Z"},
+    {"request_id":"req-005","method":"GET","path":"/api/users/747","status_code":200,"resp_bytes":409,"latency_ms":19,"action_applied":"allow","label":"attack:idor","created_at":"2026-09-06T09:00:50Z"},
+    {"request_id":"req-006","method":"GET","path":"/api/users/748","status_code":200,"resp_bytes":413,"latency_ms":16,"action_applied":"allow","label":"attack:idor","created_at":"2026-09-06T09:01:00Z"},
+    {"request_id":"req-007","method":"GET","path":"/api/users/749","status_code":429,"resp_bytes":31,"latency_ms":3,"action_applied":"rate_limit","label":"attack:idor","created_at":"2026-09-06T09:01:15Z"},
+    {"request_id":"req-008","method":"GET","path":"/api/users/750","status_code":401,"resp_bytes":29,"latency_ms":2,"action_applied":"challenge","label":"attack:idor","created_at":"2026-09-06T09:01:30Z"},
+    {"request_id":"req-009","method":"GET","path":"/api/users/751","status_code":403,"resp_bytes":47,"latency_ms":2,"action_applied":"block","label":"attack:idor","created_at":"2026-09-06T09:01:45Z"},
+    {"request_id":"req-010","method":"GET","path":"/api/users/752","status_code":401,"resp_bytes":33,"latency_ms":2,"action_applied":"revoke","label":"attack:idor","created_at":"2026-09-06T09:02:10Z"}
+  ]
 }

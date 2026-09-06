@@ -53,12 +53,41 @@ export interface Incident {
   updated_at: string;
 }
 
+// RequestLogOut — one row of the incident detail's request timeline (monika/app/incidents/models.py)
+export interface RequestLogEntry {
+  request_id: string;
+  method: string;
+  path: string;
+  status_code: number;
+  resp_bytes: number;
+  latency_ms: number;
+  action_applied: string;
+  label: string | null;
+  created_at: string;
+}
+
 // IncidentDetailOut
 export interface IncidentDetail extends Incident {
   llm_explanation: string | null;
   llm_next_step: string | null;
   signals: Signal[];
   overrides: Override[];
+  // Last 50 REQUEST_LOG rows for this incident's session, oldest first.
+  request_timeline: RequestLogEntry[];
+}
+
+// OverrideRequest body (POST /_monika/incidents/{id}/override)
+export interface OverrideRequest {
+  action: Override["action"];
+  reason: string;
+  analyst: string;
+}
+
+// EndpointUpdateIn body (PUT /_monika/endpoints/{id})
+export interface EndpointUpdateInput {
+  owner_field: string | null;
+  sensitive_fields: string[];
+  auth_required: boolean;
 }
 
 // IncidentListOut
@@ -81,6 +110,7 @@ export interface EndpointSummary {
   id: string;
   method: string;
   path_pattern: string;
+  owner_field: string | null;
   auth_required: boolean;
   admin_only: boolean;
   sensitive_fields: string[];

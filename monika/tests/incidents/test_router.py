@@ -81,6 +81,46 @@ async def test_keyset_pagination_no_duplicates(session_factory, client) -> None:
     assert times == sorted(times, reverse=True)
 
 
+async def test_detail_includes_request_timeline_oldest_first(session_factory, client) -> None:
+    from app.incidents.models import RequestLog
+
+    await record_incident(
+        session_factory,
+        session_key=SESSION_KEY,
+        endpoint_id=ENDPOINT_ID,
+        signals=[Sig("auth", 85)],
+        score=85,
+        confidence=85,
+        action_taken="BLOCK",
+        now=T0,
+    )
+    async with session_factory() as s:
+        for i, (status, action) in enumerate([(200, "allow"), (429, "rate_limit"), (403, "block")]):
+            s.add(
+                RequestLog(
+                    request_id=f"r{i}",
+                    session_key=SESSION_KEY,
+                    method="GET",
+                    path="/api/users/701",
+                    status_code=status,
+                    resp_bytes=100,
+                    latency_ms=5,
+                    action_applied=action,
+                    label="attack:idor",
+                    created_at=T0 + timedelta(seconds=i),
+                )
+            )
+        await s.commit()
+
+    feed = (await client.get("/_monika/incidents")).json()
+    incident_id = feed["items"][0]["id"]
+    detail = (await client.get(f"/_monika/incidents/{incident_id}")).json()
+    timeline = detail["request_timeline"]
+    assert len(timeline) == 3
+    assert [row["status_code"] for row in timeline] == [200, 429, 403]  # oldest first
+    assert [row["action_applied"] for row in timeline] == ["allow", "rate_limit", "block"]
+
+
 async def test_session_route_reads_redis(session_factory, client, app) -> None:
     await app.state.redis.hset(
         "ladder:742",

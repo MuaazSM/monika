@@ -184,3 +184,20 @@ async def test_force_block_sets_block(app, sf) -> None:
         resp = await _override(c, inc.id, "force_block", reason="known bad actor")
     assert resp.status_code == 200
     assert (await read_ladder(redis, SK)).state.value == "BLOCK"
+
+
+async def test_override_publishes_incident_updated(app, sf) -> None:
+    # Implementation-Backend.md Phase 7.1: override publishes incident.updated (in addition
+    # to session.changed) so a feed open elsewhere reflects the new status without a refetch.
+    inc = await _seed_incident(sf)
+    q = app.state.broadcaster.subscribe()
+    async for c in _client(app):
+        await _override(c, inc.id, "acknowledge", reason="looked into it")
+    frames = []
+    while not q.empty():
+        frames.append(q.get_nowait())
+    types = [f.split("\n", 1)[0] for f in frames]
+    assert "event: incident.updated" in types
+    assert "event: session.changed" in types
+    updated_frame = next(f for f in frames if f.startswith("event: incident.updated"))
+    assert '"status":"acknowledged"' in updated_frame

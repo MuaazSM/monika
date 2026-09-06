@@ -20,11 +20,12 @@ from sqlalchemy import Select, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ..explainer.job import ExplainerJob
-from .models import IncidentRow, OverrideRow, SignalRow
+from .models import IncidentRow, OverrideRow, RequestLog, SignalRow
 from .threat_type import SignalLike, derive_threat_type
 
 MIN_INCIDENT_SCORE = 30
 WINDOW = timedelta(minutes=10)
+TIMELINE_LIMIT = 50
 
 
 class IncidentSignal(SignalLike, Protocol):
@@ -184,8 +185,13 @@ async def _run(
 
 async def get_incident(
     session_factory: async_sessionmaker[AsyncSession], incident_id: UUID
-) -> tuple[IncidentRow, list[SignalRow], list[OverrideRow]] | None:
-    """One incident with its signals and overrides (ordered by created_at)."""
+) -> tuple[IncidentRow, list[SignalRow], list[OverrideRow], list[RequestLog]] | None:
+    """One incident with its signals, overrides, and request timeline.
+
+    The timeline is the last TIMELINE_LIMIT REQUEST_LOG rows for the incident's session,
+    returned oldest-first so the dashboard reads it left-to-right as 200s turning into
+    401/403/429 (PRD §10.3, Implementation-Backend.md Phase 7.1).
+    """
     async with session_factory() as session:
         incident = (
             await session.execute(select(IncidentRow).where(IncidentRow.id == incident_id))
@@ -210,4 +216,15 @@ async def get_incident(
                 )
             ).scalars()
         )
-        return incident, signals, overrides
+        timeline = list(
+            (
+                await session.execute(
+                    select(RequestLog)
+                    .where(RequestLog.session_key == incident.session_key)
+                    .order_by(RequestLog.created_at.desc())
+                    .limit(TIMELINE_LIMIT)
+                )
+            ).scalars()
+        )
+        timeline.reverse()
+        return incident, signals, overrides, timeline

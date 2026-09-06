@@ -10,7 +10,9 @@ import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.db.base import Base
-from app.endpoints.service import list_endpoints
+from app.endpoints.loader import EndpointRegistry
+from app.endpoints.models import EndpointConfig, EndpointUpdateIn
+from app.endpoints.service import list_endpoints, update_endpoint
 from app.incidents import models as _models  # noqa: F401
 from app.incidents.models import EndpointConfigRow, IncidentRow
 
@@ -114,3 +116,46 @@ async def test_baseline_snapshot_is_surfaced(sf) -> None:
     assert rows["/api/products"].baseline_rpm_mean == 12.5
     assert rows["/api/users/{id}"].auth_required is True
     assert rows["/api/products"].sensitive_fields == ["cost_price"]
+
+
+async def test_update_endpoint_writes_db_row_and_live_registry(sf) -> None:
+    # A self-contained seed: the DB row's id must be the SAME uuid5 the registry derives, so
+    # this deliberately doesn't reuse the shared _seed_endpoints() random ids.
+    config = EndpointConfig(
+        method="GET", path_pattern="/api/products", sensitive_fields=("cost_price",)
+    )
+    async with sf() as s:
+        s.add(_ep(config.endpoint_id, "/api/products", sensitive_fields=["cost_price"]))
+        await s.commit()
+    registry = EndpointRegistry([config], admin_subs=[])
+
+    body = EndpointUpdateIn(
+        owner_field=None,
+        sensitive_fields=["cost_price", "supplier_margin"],
+        auth_required=True,
+    )
+    result = await update_endpoint(sf, registry, config.endpoint_id, body, now=NOW)
+    assert result is not None
+    assert result.sensitive_fields == ["cost_price", "supplier_margin"]
+    assert result.auth_required is True
+
+    # the display row in Postgres reflects the change too
+    rows = {e.path_pattern: e for e in await list_endpoints(sf, now=NOW)}
+    assert rows["/api/products"].sensitive_fields == ["cost_price", "supplier_margin"]
+    assert rows["/api/products"].auth_required is True
+    # and the live matcher used by detection sees it immediately
+    matched, _ = registry.match("GET", "/api/products")
+    assert matched is not None and matched.sensitive_fields == ("cost_price", "supplier_margin")
+
+
+async def test_update_endpoint_unknown_id_returns_none(sf) -> None:
+    await _seed_endpoints(sf)
+    registry = EndpointRegistry([], admin_subs=[])
+    result = await update_endpoint(
+        sf,
+        registry,
+        uuid4(),
+        EndpointUpdateIn(owner_field=None, sensitive_fields=[], auth_required=False),
+        now=NOW,
+    )
+    assert result is None

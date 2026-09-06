@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+from collections import deque
 from collections.abc import AsyncIterator
 
 import structlog
@@ -27,6 +28,7 @@ EVENT_TYPES = frozenset(
 
 MAX_QUEUE = 100  # per-client backlog before we start dropping the oldest event
 HEARTBEAT_SECONDS = 15
+HISTORY_SIZE = 20  # replayed to a client that connects mid-demo (Implementation-Backend.md 8.1)
 router = APIRouter(prefix="/_monika", tags=["sse"])
 
 
@@ -36,11 +38,17 @@ def _frame(event_type: str, data_json: str) -> str:
 
 
 class Broadcaster:
-    """Fan-out to every connected SSE client via per-client asyncio Queues."""
+    """Fan-out to every connected SSE client via per-client asyncio Queues.
 
-    def __init__(self, max_queue: int = MAX_QUEUE) -> None:
+    Also keeps the last HISTORY_SIZE frames so a client that connects mid-demo (opens the
+    dashboard after incidents have already started firing) sees recent history immediately
+    instead of a blank feed until the next live event.
+    """
+
+    def __init__(self, max_queue: int = MAX_QUEUE, history_size: int = HISTORY_SIZE) -> None:
         self._clients: set[asyncio.Queue[str]] = set()
         self._max_queue = max_queue
+        self._history: deque[str] = deque(maxlen=history_size)
 
     def subscribe(self) -> asyncio.Queue[str]:
         q: asyncio.Queue[str] = asyncio.Queue(maxsize=self._max_queue)
@@ -54,11 +62,17 @@ class Broadcaster:
     def client_count(self) -> int:
         return len(self._clients)
 
+    @property
+    def history(self) -> list[str]:
+        """The last (up to) HISTORY_SIZE frames, oldest first."""
+        return list(self._history)
+
     def publish(self, event_type: str, payload: BaseModel) -> None:
         """Serialize the REST model verbatim and enqueue to every client (drop-oldest)."""
         if event_type not in EVENT_TYPES:
             raise ValueError(f"unknown SSE event type: {event_type}")
         frame = _frame(event_type, payload.model_dump_json())
+        self._history.append(frame)
         for q in self._clients:
             if q.full():  # slow client — evict its oldest event, don't grow unbounded
                 with contextlib.suppress(asyncio.QueueEmpty):
@@ -72,8 +86,14 @@ async def event_source(
 ) -> AsyncIterator[str]:
     """Stream frames for one client; heartbeat comment every `heartbeat`s; clean up on exit."""
     q = broadcaster.subscribe()
+    # No `await` between subscribe() and reading .history: on a single-threaded asyncio event
+    # loop that makes the pair atomic, so no event can land in neither this snapshot nor the
+    # live queue (and none can land in both).
+    replay = broadcaster.history
     try:
         yield ": connected\n\n"
+        for frame in replay:
+            yield frame
         while True:
             if await request.is_disconnected():
                 break

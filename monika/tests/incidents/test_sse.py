@@ -93,6 +93,42 @@ async def test_disconnect_removes_queue() -> None:
     assert b.client_count == 0  # queue cleaned up on disconnect
 
 
+async def test_history_replayed_to_a_client_that_connects_late() -> None:
+    # A client connecting mid-demo (after incidents already fired) should see recent history
+    # immediately rather than a blank feed until the next live event.
+    b = Broadcaster()
+    b.publish("incident.created", _stats(1))
+    b.publish("incident.updated", _stats(2))
+
+    req = _FakeRequest(disconnect_after=10)
+    gen = event_source(b, req, heartbeat=0.01)
+    assert await gen.__anext__() == ": connected\n\n"
+    replayed = [await gen.__anext__() for _ in range(2)]
+    types = [f.split("\n", 1)[0] for f in replayed]
+    assert types == ["event: incident.created", "event: incident.updated"]
+    await gen.aclose()
+
+
+async def test_history_capped_at_20_oldest_dropped() -> None:
+    b = Broadcaster()
+    for i in range(25):
+        b.publish("stats.tick", _stats(i))
+    assert len(b.history) == 20
+    expected = range(5, 25)  # the oldest 5 (0-4) fell off; 5..24 remain, in order
+    pairs = zip(expected, b.history, strict=True)
+    assert all(f'"total_requests":{i}' in frame for i, frame in pairs)
+
+
+async def test_new_subscriber_sees_no_history_before_any_publish() -> None:
+    b = Broadcaster()
+    assert b.history == []
+    req = _FakeRequest(disconnect_after=0)
+    gen = event_source(b, req, heartbeat=0.01)
+    assert await gen.__anext__() == ": connected\n\n"
+    with pytest.raises(StopAsyncIteration):
+        await gen.__anext__()
+
+
 async def test_heartbeat_emitted_when_idle() -> None:
     b = Broadcaster()
     req = _FakeRequest(disconnect_after=5)

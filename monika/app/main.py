@@ -32,7 +32,13 @@ from .endpoints.service import sync_registry_to_db
 from .explainer.client import create_client as create_explainer_client
 from .explainer.job import ExplainerJob
 from .explainer.worker import ExplainerWorker, run_worker
-from .incidents.models import IncidentDetailOut, IncidentOut, OverrideOut, SignalOut
+from .incidents.models import (
+    IncidentDetailOut,
+    IncidentOut,
+    OverrideOut,
+    RequestLogOut,
+    SignalOut,
+)
 from .incidents.router import router as incidents_router
 from .incidents.service import get_incident
 from .incidents.sse import Broadcaster
@@ -142,7 +148,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         parts = await get_incident(session_factory, incident_id)
         if parts is None:
             return
-        incident, signals, overrides = parts
+        incident, signals, overrides, timeline = parts
         app.state.broadcaster.publish(
             "incident.explained",
             IncidentDetailOut(
@@ -151,6 +157,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 llm_next_step=incident.llm_next_step,
                 signals=[SignalOut.model_validate(s) for s in signals],
                 overrides=[OverrideOut.model_validate(o) for o in overrides],
+                request_timeline=[RequestLogOut.model_validate(r) for r in timeline],
             ),
         )
 

@@ -51,7 +51,9 @@ reset: ## truncate tables (never overridden incidents — rule 6), flush redis, 
 		DELETE FROM signal WHERE incident_id NOT IN (SELECT incident_id FROM override); \
 		DELETE FROM incident WHERE id NOT IN (SELECT incident_id FROM override); \
 		DELETE FROM request_log; \
-		DELETE FROM session; \
+		DELETE FROM session WHERE session_key NOT IN ( \
+			SELECT session_key FROM incident WHERE id IN (SELECT incident_id FROM override) \
+		); \
 		DELETE FROM attack_plan;"
 	docker compose exec -T redis redis-cli FLUSHALL
 	docker compose run --rm seed-baselines

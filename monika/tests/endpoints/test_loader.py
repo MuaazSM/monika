@@ -55,3 +55,36 @@ def test_admin_config_and_subs() -> None:
 def test_six_configured_endpoints() -> None:
     reg = load_registry(CONFIG)
     assert len(reg.endpoints) == 6
+
+
+def test_update_swaps_config_and_matcher_sees_it_immediately() -> None:
+    # PUT /_monika/endpoints/{id}: the very next match() must return the new config, so
+    # editing sensitive_fields actually changes detection, not just the display row.
+    reg = load_registry(CONFIG)
+    target, _ = reg.match("GET", "/api/products")
+    assert target is not None
+    new_ep = reg.update(
+        target.endpoint_id,
+        owner_field="vendor_id",
+        sensitive_fields=("cost_price", "supplier_margin", "internal_notes"),
+        auth_required=True,
+    )
+    assert new_ep is not None
+    assert new_ep.endpoint_id == target.endpoint_id  # stable id across the swap
+
+    matched, _ = reg.match("GET", "/api/products")
+    assert matched is not None
+    assert matched.owner_field == "vendor_id"
+    assert matched.sensitive_fields == ("cost_price", "supplier_margin", "internal_notes")
+    assert matched.auth_required is True
+    # unrelated fields (method/path_pattern/id_param/admin_only) are untouched
+    assert matched.method == target.method
+    assert matched.path_pattern == target.path_pattern
+
+
+def test_update_unknown_id_returns_none() -> None:
+    reg = load_registry(CONFIG)
+    result = reg.update(
+        uuid.uuid4(), owner_field=None, sensitive_fields=(), auth_required=False
+    )
+    assert result is None

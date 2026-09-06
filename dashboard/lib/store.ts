@@ -21,6 +21,21 @@ function upsertIncident(list: Incident[], incident: Incident): Incident[] {
   return next;
 }
 
+function detailToSummary(detail: IncidentDetail): Incident {
+  return {
+    id: detail.id,
+    session_key: detail.session_key,
+    endpoint_id: detail.endpoint_id,
+    threat_type: detail.threat_type,
+    risk_score: detail.risk_score,
+    confidence: detail.confidence,
+    action_taken: detail.action_taken,
+    status: detail.status,
+    created_at: detail.created_at,
+    updated_at: detail.updated_at,
+  };
+}
+
 interface IncidentStoreState {
   incidents: Incident[];
   incidentDetails: Record<string, IncidentDetail>;
@@ -30,9 +45,18 @@ interface IncidentStoreState {
   hydrated: boolean;
   hydrate: (data: { incidents: Incident[]; endpoints: EndpointSummary[]; stats: Stats }) => void;
   setEndpoints: (endpoints: EndpointSummary[]) => void;
+  setEndpoint: (endpoint: EndpointSummary) => void;
   setIncidentDetail: (detail: IncidentDetail) => void;
+  // Merges a full IncidentDetail (e.g. an override response) into both the detail cache and
+  // the feed's summary row — the same merge SSE's incident.explained case does.
+  applyIncidentDetail: (detail: IncidentDetail) => void;
   setSession: (session: SessionState) => void;
   applyEvent: (event: SseEvent) => void;
+  // The analyst name typed into the last override dialog, remembered for the session so it
+  // doesn't need retyping on every override (Implementation-Frontend.md Phase 2: "remembered
+  // in the store for the session; localStorage is not used anywhere").
+  lastAnalyst: string;
+  setLastAnalyst: (analyst: string) => void;
 }
 
 /**
@@ -47,6 +71,8 @@ export const useIncidentStore = create<IncidentStoreState>((set) => ({
   stats: emptyStats,
   sessions: {},
   hydrated: false,
+  lastAnalyst: "",
+  setLastAnalyst: (analyst) => set({ lastAnalyst: analyst }),
   hydrate: (data) =>
     set({
       incidents: data.incidents,
@@ -60,8 +86,17 @@ export const useIncidentStore = create<IncidentStoreState>((set) => ({
       hydrated: true,
     }),
   setEndpoints: (endpoints) => set({ endpoints }),
+  setEndpoint: (endpoint) =>
+    set((state) => ({
+      endpoints: state.endpoints.map((e) => (e.id === endpoint.id ? endpoint : e)),
+    })),
   setIncidentDetail: (detail) =>
     set((state) => ({ incidentDetails: { ...state.incidentDetails, [detail.id]: detail } })),
+  applyIncidentDetail: (detail) =>
+    set((state) => ({
+      incidents: upsertIncident(state.incidents, detailToSummary(detail)),
+      incidentDetails: { ...state.incidentDetails, [detail.id]: detail },
+    })),
   setSession: (session) =>
     set((state) => ({ sessions: { ...state.sessions, [session.session_key]: session } })),
   applyEvent: (event) =>
@@ -72,20 +107,8 @@ export const useIncidentStore = create<IncidentStoreState>((set) => ({
           return { incidents: upsertIncident(state.incidents, event.payload) };
         case "incident.explained": {
           const detail = event.payload;
-          const base: Incident = {
-            id: detail.id,
-            session_key: detail.session_key,
-            endpoint_id: detail.endpoint_id,
-            threat_type: detail.threat_type,
-            risk_score: detail.risk_score,
-            confidence: detail.confidence,
-            action_taken: detail.action_taken,
-            status: detail.status,
-            created_at: detail.created_at,
-            updated_at: detail.updated_at,
-          };
           return {
-            incidents: upsertIncident(state.incidents, base),
+            incidents: upsertIncident(state.incidents, detailToSummary(detail)),
             incidentDetails: { ...state.incidentDetails, [detail.id]: detail },
           };
         }

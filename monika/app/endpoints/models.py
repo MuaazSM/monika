@@ -49,6 +49,15 @@ class EndpointConfig(BaseModel):
         return m.groupdict() if m else None
 
 
+class EndpointUpdateIn(BaseModel):
+    """Body of PUT /_monika/endpoints/{id} (PRD §10.1): the three fields the risk map lets
+    an analyst edit inline. `owner_field` may be explicitly null (a public resource)."""
+
+    owner_field: str | None = None
+    sensitive_fields: list[str] = []
+    auth_required: bool = False
+
+
 class EndpointOut(BaseModel):
     """One row of the §13.1 risk map: config + baseline snapshot + observed risk.
 
@@ -60,6 +69,7 @@ class EndpointOut(BaseModel):
     id: uuid.UUID
     method: str
     path_pattern: str
+    owner_field: str | None
     auth_required: bool
     admin_only: bool
     sensitive_fields: list[str]

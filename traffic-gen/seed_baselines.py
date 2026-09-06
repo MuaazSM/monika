@@ -45,7 +45,11 @@ def load_config(path: str) -> tuple[list[dict], list[str]]:
 
 
 async def _login(client: httpx.AsyncClient, uid: int, password: str) -> str | None:
-    r = await client.post("/api/login", json={"username": f"user{uid}", "password": password})
+    r = await client.post(
+        "/api/login",
+        json={"username": f"user{uid}", "password": password},
+        headers={"x-monika-label": "benign"},
+    )
     if r.status_code == 200:
         return str(r.json()["access_token"])
     return None

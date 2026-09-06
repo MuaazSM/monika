@@ -26,6 +26,7 @@ from ..incidents.models import (
     IncidentRow,
     OverrideOut,
     OverrideRow,
+    RequestLogOut,
     SessionStateOut,
     SignalOut,
 )
@@ -96,7 +97,7 @@ async def override_incident(
     parts = await get_incident(sf, incident_id)
     if parts is None:
         raise HTTPException(status_code=404, detail="incident not found")
-    incident, _signals, _overrides = parts
+    incident, _signals, _overrides, _timeline = parts
     session_key = incident.session_key
 
     async with sf() as session:
@@ -156,11 +157,18 @@ async def override_incident(
 
     final = await get_incident(sf, result_id)
     assert final is not None
-    inc, signals, overrides = final
-    return IncidentDetailOut(
+    inc, signals, overrides, timeline = final
+    detail = IncidentDetailOut(
         **IncidentOut.model_validate(inc).model_dump(),
         llm_explanation=inc.llm_explanation,
         llm_next_step=inc.llm_next_step,
         signals=[SignalOut.model_validate(s) for s in signals],
         overrides=[OverrideOut.model_validate(o) for o in overrides],
+        request_timeline=[RequestLogOut.model_validate(r) for r in timeline],
     )
+    # Implementation-Backend.md Phase 7.1: override publishes incident.updated + session.changed
+    # so a feed open in another tab (or on another judge's screen) reflects the new status too.
+    request.app.state.broadcaster.publish(
+        "incident.updated", IncidentOut.model_validate(inc)
+    )
+    return detail

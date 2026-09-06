@@ -8,6 +8,8 @@ import type { IncidentDetail } from "@/lib/types";
 import { LadderBadge } from "@/components/risk/LadderBadge";
 import { ScoreBadge } from "@/components/risk/ScoreBadge";
 import { Mono } from "@/components/ui/Mono";
+import { OverridePanel } from "@/components/OverridePanel";
+import { RequestTimeline } from "@/components/RequestTimeline";
 
 export default function IncidentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -67,9 +69,13 @@ export default function IncidentDetailPage({ params }: { params: Promise<{ id: s
             )}
             <p className="mt-5 border-t border-zinc-800 pt-3 text-[11px] text-zinc-600">Written by the model after the decision was enforced. Scores and actions come from the engine.</p>
           </section>
+          <RequestTimeline entries={incident.request_timeline} />
+        </main>
+        <aside className="space-y-4">
+          <OverridePanel incident={incident} ladder={currentState} />
           {incident.overrides.length > 0 && (
             <section className="console-card p-5">
-              <h2 className="section-label">Analyst overrides</h2>
+              <h2 className="section-label">Override history</h2>
               <div className="mt-4 space-y-3">
                 {incident.overrides.map((override) => (
                   <div key={override.id} className="flex items-center justify-between gap-3 border-b border-zinc-800/70 pb-2 text-xs last:border-0">
@@ -80,8 +86,6 @@ export default function IncidentDetailPage({ params }: { params: Promise<{ id: s
               </div>
             </section>
           )}
-        </main>
-        <aside className="space-y-4">
           <section className="console-card p-5">
             <h2 className="section-label">Why was this flagged</h2>
             <div className="mt-4 space-y-3">
