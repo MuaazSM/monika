@@ -3,7 +3,7 @@
 import { Activity, Server, ShieldCheck, TriangleAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api, endpointLabel, usingFixtures } from "@/lib/api";
-import type { EndpointSummary, Incident, LadderState, Stats } from "@/lib/types";
+import type { EndpointSummary, Incident, Stats } from "@/lib/types";
 import { ThreatTypeLabel } from "@/components/risk/ThreatTypeLabel";
 
 const emptyStats: Stats = {
@@ -13,7 +13,7 @@ const emptyStats: Stats = {
   endpoints_configured: 0,
   precision: null,
   recall: null,
-  benign_by_rung: {} as Record<LadderState, number>,
+  benign_by_rung: {},
   window_minutes: 30,
 };
 

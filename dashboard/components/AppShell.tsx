@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Activity, CircleDot, Gauge, LayoutDashboard, Settings, Shield, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
+import { usingFixtures } from "@/lib/api";
 
 const navigation = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
@@ -18,7 +19,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [clock, setClock] = useState("");
 
   useEffect(() => {
-    const update = () => setClock(new Intl.DateTimeFormat("en", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format());
+    const update = () => setClock(new Intl.DateTimeFormat("en", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "UTC" }).format());
     update();
     const timer = window.setInterval(update, 1000);
     return () => window.clearInterval(timer);
@@ -37,11 +38,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             return <Link key={href} href={href} className={`nav-link ${active ? "nav-link-active" : ""}`}><Icon size={16} />{label}</Link>;
           })}
         </nav>
-        <div className="absolute bottom-6 left-4 right-4 border-t border-zinc-800 pt-4 text-xs text-zinc-500"><p className="mono">ENGINE v0.1.0</p><p className="mt-1">Fixture environment</p></div>
+        <div className="absolute bottom-6 left-4 right-4 border-t border-zinc-800 pt-4 text-xs text-zinc-500"><p className="mono">ENGINE v0.1.0</p><p className="mt-1">{usingFixtures ? "Fixture environment" : "Live environment"}</p></div>
       </aside>
       <div className="lg:pl-64">
         <header className="flex h-20 items-center justify-between border-b border-zinc-800/80 px-6 sm:px-8">
-          <div className="flex items-center gap-2 text-sm text-zinc-400"><CircleDot size={14} className="text-emerald-400" /><span>PROTECTED</span><span className="text-zinc-700">/</span><span className="text-indigo-300">LEARNING</span></div>
+          <div className="flex items-center gap-2 text-sm text-zinc-400"><CircleDot size={14} className="text-emerald-400" /><span>PROTECTED</span></div>
           <time className="mono text-xs text-zinc-500" dateTime={clock}>{clock || "--:--:--"} UTC</time>
         </header>
         <main className="mx-auto max-w-[1600px] p-6 sm:p-8">{children}</main>

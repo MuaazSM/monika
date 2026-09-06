@@ -43,7 +43,7 @@ openapi: ## export demo-api/openapi.json from the app
 	cd demo-api && uv run python export_openapi.py
 
 demo: ## run a traffic-gen scenario: make demo s=idor
-	@test -n "$(s)" || { echo "usage: make demo s=<idor|benign>"; exit 1; }
+	@test -n "$(s)" || { echo "usage: make demo s=<idor|stuffing|sqli|scrape|admin|benign>"; exit 1; }
 	docker compose run --rm traffic-gen python -m traffic_gen $(s)
 
 reset: ## truncate tables (never overridden incidents — rule 6), flush redis, re-seed baselines

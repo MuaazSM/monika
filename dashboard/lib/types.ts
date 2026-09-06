@@ -100,7 +100,9 @@ export interface Stats {
   endpoints_configured: number;
   precision: number | null; // null (not 0) when no request reached >= RATE_LIMIT
   recall: number | null; // null (not 0) when no attack scenario ran
-  benign_by_rung: Record<LadderState, number>;
+  // Keys are RequestLog.action_applied values: "allow" | "rate_limit" | "challenge" |
+  // "block" | "revoke" — lowercase enforcement actions, NOT the LadderState enum.
+  benign_by_rung: Record<string, number>;
   window_minutes: number;
 }
 
