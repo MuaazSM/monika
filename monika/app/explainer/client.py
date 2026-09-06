@@ -12,7 +12,6 @@ from .job import ExplainerJob
 from .prompt import SYSTEM_PROMPT, build_user_message
 
 MAX_TOKENS = 300
-TEMPERATURE = 0.2
 TIMEOUT_SECONDS = 8.0
 MAX_RETRIES = 1
 
@@ -27,12 +26,16 @@ class ExplainerClient:
         self._model = model
 
     async def explain(self, job: ExplainerJob) -> str:
-        """Call the model and return its text. Raises on API error/timeout (worker handles)."""
-        # The SDK's overloaded create() confuses mypy on the kwargs form; the call is valid.
-        msg = await self._client.messages.create(  # type: ignore[call-overload]
+        """Call the model and return its text. Raises on API error/timeout (worker handles).
+
+        No `temperature`: the installed SDK's messages.create() (anthropic>=1.0, see
+        pyproject.toml's anthropic>=0.40) dropped it from the signature entirely — passing it
+        raised `unexpected keyword argument 'temperature'` on every call, so no explanation
+        ever wrote back (silently, since a failed call correctly nulls the field per rule 1).
+        """
+        msg = await self._client.messages.create(
             model=self._model,
             max_tokens=MAX_TOKENS,
-            temperature=TEMPERATURE,
             system=SYSTEM_PROMPT,
             messages=cast("Any", [{"role": "user", "content": build_user_message(job)}]),
         )
