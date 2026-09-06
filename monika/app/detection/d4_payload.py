@@ -169,10 +169,11 @@ class PayloadDetector:
         # --- exposure sub-rule (category "exposure") — DECISIONS.md D-12, D-16 ---
         # Excessive data exposure is a SCRAPE, not a single legitimate read. Fires when
         # sensitive fields are present AND EITHER the response is a bulk list (>20 -> 85) or
-        # abnormally large vs baseline (>3x -> 70), OR the session has read > 20 DISTINCT
-        # resources (pages) of this endpoint (D-16 breadth -> 70). A single/slow read (own
-        # profile, benign product paging of a few pages) stays under the breadth floor, so
-        # benign browsing produces no incident (Gate 1 criterion 2).
+        # abnormally large vs baseline (>3x -> 70), OR the session has read > 8 DISTINCT
+        # resources (pages) of this endpoint within EXPOSURE_BREADTH_WINDOW seconds (D-16
+        # breadth -> 70). A single/slow read (own profile, benign product paging of a few
+        # pages) stays under the breadth floor, so benign browsing produces no incident
+        # (Gate 1 criterion 2).
         ep = ctx.endpoint
         if ctx.response.status == 200 and ep is not None and ep.sensitive_fields:
             body = ctx.response.body_json
