@@ -16,6 +16,10 @@ ATTACKER_USER = "user742"
 ATTACKER_PASSWORD = "hunter2"
 _SQLI = [
     "' OR '1'='1",
+    (
+        "' UNION SELECT id,name,description,category,price,cost_price,supplier_margin "
+        "FROM demo.products --"
+    ),
     "zzz' UNION SELECT id,username,ssn,email,0,0,0 FROM demo.users --",
     "1' OR '1'='1' --",
 ]

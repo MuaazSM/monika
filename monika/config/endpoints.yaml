@@ -20,7 +20,7 @@ endpoints:
     id_param: id
     owner_field: id          # response JSON field identifying the owner
     auth_required: true
-    sensitive_fields: [password_hash, ssn, api_key]
+    sensitive_fields: [password_hash, ssn]
     admin_only: false
 
   - method: GET
